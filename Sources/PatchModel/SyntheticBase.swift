@@ -61,6 +61,50 @@ public enum SyntheticBase {
         return out
     }
 
+    /// One base for several patches against the same code (a review
+    /// session): every base line any patch knows sits at its number,
+    /// filler fills what none of them touched. Patches that disagree
+    /// about a base line cannot share a base, and that is an error
+    /// naming the file and line.
+    public static func merged(for patches: [Patch]) throws -> [SyntheticBaseFile] {
+        // path → (line number → text); the filler marker is `nil`.
+        var known: [String: [Int: String]] = [:]
+        var noNewline: [String: Bool] = [:]
+        var longest: [String: Int] = [:]
+        var order: [String] = []
+        for patch in patches {
+            for file in patch.files {
+                guard let base = try self.file(for: file) else { continue }
+                if known[base.path] == nil { order.append(base.path); known[base.path] = [:] }
+                var lines = base.text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                if base.text.hasSuffix("\n") { lines.removeLast() }
+                let fileNoNewline = !base.text.isEmpty && !base.text.hasSuffix("\n")
+                for (i, text) in lines.enumerated() where text != filler(line: i + 1) {
+                    let number = i + 1
+                    if let existing = known[base.path]![number], existing != text {
+                        throw SyntheticBaseError(path: base.path, message: "patches disagree about base line \(number): \"\(existing.prefix(40))\" vs \"\(text.prefix(40))\"")
+                    }
+                    known[base.path]![number] = text
+                }
+                // Only a reconstruction that reaches the end of the file can
+                // know about its final newline, and that is the longest one.
+                if lines.count > longest[base.path, default: 0] {
+                    longest[base.path] = lines.count
+                    noNewline[base.path] = fileNoNewline
+                } else if lines.count == longest[base.path, default: 0], fileNoNewline {
+                    noNewline[base.path] = true
+                }
+            }
+        }
+        return order.map { path in
+            let lines = known[path]!
+            let count = lines.keys.max() ?? 0
+            if count == 0 { return SyntheticBaseFile(path: path, text: "") }
+            let body = (1...count).map { lines[$0] ?? filler(line: $0) }.joined(separator: "\n")
+            return SyntheticBaseFile(path: path, text: body + (noNewline[path] == true ? "" : "\n"))
+        }
+    }
+
     /// The synthetic base of one file, or `nil` when the file has no
     /// base (added) or no text hunks (binary).
     public static func file(for change: FileChange) throws -> SyntheticBaseFile? {

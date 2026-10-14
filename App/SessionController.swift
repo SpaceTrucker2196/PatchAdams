@@ -1,0 +1,385 @@
+import SwiftUI
+import PatchModel
+import BaseLoader
+import ApplyEngine
+
+// The one owner of session state (spec "Technical architecture"). The
+// shell never calls an engine: everything heavy runs on `Engines`, an
+// actor, and comes back as immutable values that the views render.
+
+/// One patch as the window shows it (spec "Column").
+struct PatchColumn: Identifiable, Hashable {
+    let id: UUID
+    /// A, B, C or D — assigned when the patch is added and kept across
+    /// reordering, so a label always means the same patch.
+    var label: String
+    /// The patch's file name, shown beside the label everywhere
+    /// (FR-4, MISSION.md §6).
+    var sourceName: String
+    var patch: Patch
+    var applied: AppliedPatch?
+    var isHidden = false
+    var isRead = false
+
+    var isApplying: Bool { applied == nil }
+
+    func appliedFile(_ path: String) -> AppliedFile? {
+        applied?.files.first { $0.change.path == path || $0.change.oldPath == path }
+    }
+
+    /// Status chip for one file row (FR-8).
+    func chip(for path: String) -> FileChip {
+        guard let change = patch.files.first(where: { $0.path == path || $0.oldPath == path }) else { return .unchanged }
+        if let file = appliedFile(path), file.status.isFailure { return .failed }
+        switch change.kind {
+        case .added: return .added
+        case .deleted: return .deleted
+        default: return .changed
+        }
+    }
+}
+
+enum FileChip: String, Hashable {
+    case changed, added, deleted, unchanged, failed
+
+    var color: Color {
+        switch self {
+        case .changed: return .blue
+        case .added: return .green
+        case .deleted: return .red
+        case .unchanged: return .secondary
+        case .failed: return .orange
+        }
+    }
+}
+
+struct FileRow: Identifiable, Hashable {
+    var id: String { path }
+    var path: String
+    var chips: [UUID: FileChip]
+    var isTest: Bool
+}
+
+struct ScrollRequest: Hashable {
+    var displayLine: Int
+    var generation: Int
+}
+
+/// Engines run here, off the main actor. Results are value types.
+actor Engines {
+    func apply(_ patch: Patch, to base: any FileProvider) -> AppliedPatch {
+        ApplyEngine.apply(patch, to: base)
+    }
+}
+
+@MainActor @Observable
+final class SessionController {
+    var base: (any FileProvider)?
+    var columns: [PatchColumn] = []
+    var selectedPath: String?
+    var scrollLock = true
+    var requestText = ""
+    var showRequestPanel = true
+    var filterText = ""
+    var testsOnly = false
+    var showRemovedLines = true
+    var focusedColumnID: UUID?
+    /// Selected display-line range per column, from the text views.
+    var selections: [UUID: Range<Int>] = [:]
+    var scrollRequests: [UUID: ScrollRequest] = [:]
+    var errorMessage: String?
+    var statusMessage: String?
+
+    @ObservationIgnored let engines = Engines()
+    @ObservationIgnored let scrollSync = ScrollSync()
+    @ObservationIgnored private var scrollGeneration = 0
+    @ObservationIgnored private var displayCache: [String: [DisplayLine]] = [:]
+
+    /// Columns in display order, hidden ones left out.
+    var visibleColumns: [PatchColumn] { columns.filter { !$0.isHidden } }
+
+    var hasSession: Bool { base != nil && columns.count >= 2 }
+
+    var baseDescription: String { base?.origin.description ?? String(localized: "no base") }
+
+    var sessionTitle: String {
+        guard base != nil || !columns.isEmpty else { return String(localized: "Patch Adam") }
+        return "\(baseDescription) — \(columns.count) " + String(localized: "patches")
+    }
+
+    // MARK: - Loading (FR-1, FR-2)
+
+    func openBase(url: URL, revision: String? = nil) {
+        do {
+            base = try BaseLoader.open(url, revision: revision)
+            reapplyAll()
+        } catch {
+            errorMessage = "\(error)"
+        }
+    }
+
+    /// Rebuild a base from the patches themselves (SyntheticBase, D4):
+    /// every base line any patch shows is real, the rest is filler.
+    func useSyntheticBase() {
+        do {
+            let files = try SyntheticBase.merged(for: columns.map(\.patch))
+            base = InMemoryBase(label: String(localized: "synthetic base from \(columns.count) patches"),
+                                texts: Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0.text) }))
+            reapplyAll()
+        } catch {
+            errorMessage = "\(error)"
+        }
+    }
+
+    func addPatch(url: URL) {
+        do {
+            let patch = try UnifiedDiffParser.parse(contentsOf: url)
+            addPatch(patch, name: url.lastPathComponent)
+        } catch {
+            errorMessage = "\(url.lastPathComponent): \(error)"
+        }
+    }
+
+    func addPatch(text: String, name: String) {
+        do {
+            addPatch(try UnifiedDiffParser.parse(text), name: name)
+        } catch {
+            errorMessage = "\(name): \(error)"
+        }
+    }
+
+    private func addPatch(_ patch: Patch, name: String) {
+        guard columns.count < 4 else {
+            errorMessage = String(localized: "A session holds at most four patches.")
+            return
+        }
+        let labels = ["A", "B", "C", "D"]
+        let used = Set(columns.map(\.label))
+        let label = labels.first { !used.contains($0) } ?? "?"
+        let column = PatchColumn(id: UUID(), label: label, sourceName: name, patch: patch)
+        columns.append(column)
+        apply(columnID: column.id)
+        if selectedPath == nil { selectedPath = fileRows.first?.path }
+    }
+
+    func removeColumn(_ id: UUID) {
+        columns.removeAll { $0.id == id }
+        displayCache = displayCache.filter { !$0.key.hasPrefix(id.uuidString) }
+    }
+
+    func newSession() {
+        base = nil
+        columns = []
+        selectedPath = nil
+        selections = [:]
+        displayCache = [:]
+        requestText = ""
+        showRequestPanel = true
+    }
+
+    /// Open patch files against a base rebuilt from them (debug hooks).
+    func openDemoSession(fixtures: [URL], request: String = "") {
+        newSession()
+        for url in fixtures { addPatch(url: url) }
+        useSyntheticBase()
+        requestText = request
+    }
+
+    // MARK: - Apply
+
+    func reapplyAll() {
+        displayCache = [:]
+        for column in columns { apply(columnID: column.id) }
+    }
+
+    private func apply(columnID: UUID) {
+        guard let base, let index = columns.firstIndex(where: { $0.id == columnID }) else { return }
+        columns[index].applied = nil
+        let patch = columns[index].patch
+        Task {
+            let applied = await engines.apply(patch, to: base)
+            guard let i = columns.firstIndex(where: { $0.id == columnID }) else { return }
+            columns[i].applied = applied
+            displayCache = displayCache.filter { !$0.key.hasPrefix(columnID.uuidString) }
+            let report = applied.report
+            if report.failed > 0 {
+                statusMessage = String(localized: "\(columns[i].label) (\(columns[i].sourceName)): \(report.failed) file(s) failed to apply")
+            }
+        }
+    }
+
+    // MARK: - File tree (FR-8)
+
+    var fileRows: [FileRow] {
+        var paths: [String: [UUID: FileChip]] = [:]
+        for column in columns {
+            for file in column.patch.files {
+                paths[file.path, default: [:]][column.id] = column.chip(for: file.path)
+            }
+        }
+        let filter = filterText.lowercased()
+        return paths.keys.sorted().compactMap { path in
+            let change = columns.lazy.compactMap { $0.patch.files.first { $0.path == path } }.first
+            let isTest = change?.isTest ?? false
+            if testsOnly && !isTest { return nil }
+            if !filter.isEmpty && !path.lowercased().contains(filter) { return nil }
+            var chips = paths[path]!
+            for column in columns where chips[column.id] == nil { chips[column.id] = .unchanged }
+            return FileRow(path: path, chips: chips, isTest: isTest)
+        }
+    }
+
+    // MARK: - Rendering
+
+    /// What a column shows for the selected file: the applied file, or
+    /// the untouched base file when the patch does not mention it.
+    func renderedFile(column: PatchColumn, path: String) -> AppliedFile? {
+        if let file = column.appliedFile(path) { return file }
+        guard column.applied != nil, let base, let data = try? base.contents(of: path) else { return nil }
+        let text = BaseLoader.text(from: data)
+        let count = ApplyEngine.splitLines(text).count
+        let change = FileChange(oldPath: path, newPath: path, kind: .modified)
+        return AppliedFile(change: change, baseText: text, postText: text, status: .clean,
+                           lineMap: LineMap.identity(lineCount: count), hunks: [])
+    }
+
+    static let reducedModeThreshold = 50_000
+
+    /// Display lines for one column and file, cached per applied result.
+    /// Above `reducedModeThreshold` lines only hunks and three lines of
+    /// context are shown (spec "Large or odd patches").
+    func displayLines(column: PatchColumn, path: String) -> [DisplayLine] {
+        let key = "\(column.id.uuidString)|\(path)|\(showRemovedLines)|\(column.applied == nil)"
+        if let cached = displayCache[key] { return cached }
+        guard let file = renderedFile(column: column, path: path) else { return [] }
+        var lines: [DisplayLine]
+        if file.status.isFailure {
+            lines = Self.rawHunkLines(file.change)
+        } else {
+            lines = file.displayLines(includeRemoved: showRemovedLines)
+            if lines.count > Self.reducedModeThreshold { lines = Self.reduced(lines) }
+        }
+        displayCache[key] = lines
+        return lines
+    }
+
+    /// A failed file stays visible with its raw hunks (FR-3).
+    static func rawHunkLines(_ change: FileChange) -> [DisplayLine] {
+        var out: [DisplayLine] = []
+        for hunk in change.hunks {
+            out.append(DisplayLine(kind: .context, baseLine: nil, postLine: nil,
+                                   text: "@@ -\(hunk.oldStart),\(hunk.oldCount) +\(hunk.newStart),\(hunk.newCount) @@ \(hunk.sectionHeading ?? "")"))
+            for line in hunk.numberedLines {
+                let kind: DisplayLine.Kind = line.line.kind == .added ? .added : line.line.kind == .removed ? .removed : .context
+                out.append(DisplayLine(kind: kind, baseLine: line.oldNumber, postLine: line.newNumber, text: line.line.text))
+            }
+        }
+        return out
+    }
+
+    static func reduced(_ lines: [DisplayLine], context: Int = 3) -> [DisplayLine] {
+        var keep = [Bool](repeating: false, count: lines.count)
+        for (i, line) in lines.enumerated() where line.kind != .context {
+            for j in max(0, i - context)...min(lines.count - 1, i + context) { keep[j] = true }
+        }
+        var out: [DisplayLine] = []
+        var skipped = 0
+        for (i, line) in lines.enumerated() {
+            if keep[i] {
+                if skipped > 0 {
+                    out.append(DisplayLine(kind: .context, baseLine: nil, postLine: nil, text: "··· \(skipped) " + String(localized: "unchanged lines") + " ···"))
+                    skipped = 0
+                }
+                out.append(line)
+            } else {
+                skipped += 1
+            }
+        }
+        if skipped > 0 {
+            out.append(DisplayLine(kind: .context, baseLine: nil, postLine: nil, text: "··· \(skipped) " + String(localized: "unchanged lines") + " ···"))
+        }
+        return out
+    }
+
+    // MARK: - Selection and references (MISSION.md §3)
+
+    var focusedColumn: PatchColumn? {
+        columns.first { $0.id == focusedColumnID } ?? visibleColumns.first
+    }
+
+    /// The reference for the focused column's selection, or `nil`.
+    func currentReference() -> LineReference? {
+        guard let column = focusedColumn, let path = selectedPath,
+              let range = selections[column.id] else { return nil }
+        let lines = displayLines(column: column, path: path)
+        guard !lines.isEmpty else { return nil }
+        let clamped = max(0, range.lowerBound)..<min(lines.count, max(range.upperBound, range.lowerBound + 1))
+        guard clamped.lowerBound < clamped.upperBound else { return nil }
+        let fileName = (path as NSString).lastPathComponent
+        return LineReference.forDisplayLines(lines[clamped], fileName: fileName)
+    }
+
+    func copyReference() {
+        guard let reference = currentReference() else {
+            statusMessage = String(localized: "Select lines in a column first.")
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(reference.description, forType: .string)
+        statusMessage = String(localized: "Copied \(reference.description)")
+    }
+
+    // MARK: - Navigation
+
+    func focusColumn(index: Int) {
+        let visible = visibleColumns
+        guard index < visible.count else { return }
+        focusedColumnID = visible[index].id
+        scrollSync.focus(visible[index].id)
+    }
+
+    /// Scroll the focused column to the next (or previous) hunk from
+    /// the top of its selection or view (keyboard `]` / `[`).
+    func jumpHunk(forward: Bool) {
+        guard let column = focusedColumn, let path = selectedPath else { return }
+        let lines = displayLines(column: column, path: path)
+        let current = selections[column.id]?.lowerBound ?? scrollSync.topLine(of: column.id) ?? 0
+        // Hunk starts: first changed line after a context line.
+        var starts: [Int] = []
+        for (i, line) in lines.enumerated() where line.kind != .context && (i == 0 || lines[i - 1].kind == .context) {
+            starts.append(i)
+        }
+        let target = forward ? starts.first { $0 > current } : starts.last { $0 < current }
+        guard let target else { return }
+        scrollGeneration += 1
+        scrollRequests[column.id] = ScrollRequest(displayLine: target, generation: scrollGeneration)
+        selections[column.id] = target..<target + 1
+    }
+
+    func moveColumn(_ id: UUID, by delta: Int) {
+        guard let i = columns.firstIndex(where: { $0.id == id }) else { return }
+        let j = i + delta
+        guard j >= 0, j < columns.count else { return }
+        columns.swapAt(i, j)
+    }
+
+    func toggleHidden(_ id: UUID) {
+        guard let i = columns.firstIndex(where: { $0.id == id }) else { return }
+        columns[i].isHidden.toggle()
+    }
+
+    func toggleRead(_ id: UUID) {
+        guard let i = columns.firstIndex(where: { $0.id == id }) else { return }
+        columns[i].isRead.toggle()
+    }
+}
+
+extension LineMap {
+    /// Every post line is its own base line: the map of an untouched file.
+    static func identity(lineCount: Int) -> LineMap {
+        var map = LineMap.empty
+        map.postToBase = (0..<lineCount).map { $0 + 1 }
+        map.baseToPost = map.postToBase
+        return map
+    }
+}

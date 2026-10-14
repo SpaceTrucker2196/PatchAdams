@@ -3,15 +3,6 @@ import PatchModel
 import BaseLoader
 @testable import ApplyEngine
 
-/// A base held in memory, for rule tests that need a few lines of
-/// base text and nothing on disk.
-struct InMemoryBase: FileProvider {
-    var files: [String: String]
-    var origin: BaseOrigin { .directory(URL(fileURLWithPath: "/memory")) }
-    func contents(of path: String) throws -> Data? { files[path].map { Data($0.utf8) } }
-    func allPaths() throws -> [String] { files.keys.sorted() }
-}
-
 final class ApplyEngineTests: XCTestCase {
 
     static let repoRoot: URL = URL(fileURLWithPath: #filePath)
@@ -127,7 +118,7 @@ final class ApplyEngineTests: XCTestCase {
     """
 
     func testHunkAppliesAtAnOffsetAndStaysClean() throws {
-        let base = InMemoryBase(files: ["f.txt": "x\ny\nz\none\ntwo\nthree\nfour\nfive\n"])
+        let base = InMemoryBase(texts: ["f.txt": "x\ny\nz\none\ntwo\nthree\nfour\nfive\n"])
         let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: base).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertEqual(file.postText, "x\ny\nz\none\ntwo\nTHREE\nfour\nfive\n")
@@ -140,7 +131,7 @@ final class ApplyEngineTests: XCTestCase {
     }
 
     func testFuzzOneWhenOneContextLineDiffers() throws {
-        let base = InMemoryBase(files: ["f.txt": "one\nTWO-changed\nthree\nfour\nfive\n"])
+        let base = InMemoryBase(texts: ["f.txt": "one\nTWO-changed\nthree\nfour\nfive\n"])
         let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: base).files[0]
         XCTAssertEqual(file.status, .fuzz(1))
         XCTAssertEqual(file.postText, "one\nTWO-changed\nTHREE\nfour\nfive\n", "fuzzed context keeps the base's line")
@@ -148,14 +139,14 @@ final class ApplyEngineTests: XCTestCase {
     }
 
     func testFuzzTwoWhenBothContextSidesDiffer() throws {
-        let base = InMemoryBase(files: ["f.txt": "one\nTWO\nthree\nFOUR\nfive\n"])
+        let base = InMemoryBase(texts: ["f.txt": "one\nTWO\nthree\nFOUR\nfive\n"])
         let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: base).files[0]
         XCTAssertEqual(file.status, .fuzz(1), "one line each side is fuzz 1")
         XCTAssertEqual(file.postText, "one\nTWO\nTHREE\nFOUR\nfive\n")
     }
 
     func testFailedFileKeepsRawHunksAndHasNoPostText() throws {
-        let base = InMemoryBase(files: ["f.txt": "one\ntwo\nTHREE-already\nfour\nfive\n"])
+        let base = InMemoryBase(texts: ["f.txt": "one\ntwo\nTHREE-already\nfour\nfive\n"])
         let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: base).files[0]
         guard case .failed(let reason) = file.status else { return XCTFail("expected failed, got \(file.status)") }
         XCTAssertTrue(reason.contains("hunk 1"), reason)
@@ -166,7 +157,7 @@ final class ApplyEngineTests: XCTestCase {
     }
 
     func testRemovedLineMatchingButWrongContextWithZeroFuzzFails() throws {
-        let base = InMemoryBase(files: ["f.txt": "A\nthree\nB\n"])
+        let base = InMemoryBase(texts: ["f.txt": "A\nthree\nB\n"])
         let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: base, maxFuzz: 0).files[0]
         XCTAssertTrue(file.status.isFailure)
     }
@@ -184,7 +175,7 @@ final class ApplyEngineTests: XCTestCase {
         +NINE
 
         """)
-        let base = InMemoryBase(files: ["f.txt": "one\ntwo\n"])
+        let base = InMemoryBase(texts: ["f.txt": "one\ntwo\n"])
         let file = ApplyEngine.apply(patch, to: base).files[0]
         guard case .failed(let reason) = file.status else { return XCTFail() }
         XCTAssertTrue(reason.contains("hunk 2"), reason)
@@ -192,7 +183,7 @@ final class ApplyEngineTests: XCTestCase {
     }
 
     func testMissingBaseFileFails() throws {
-        let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: InMemoryBase(files: [:])).files[0]
+        let file = ApplyEngine.apply(try parse(Self.threeLinePatch), to: InMemoryBase(texts: [:])).files[0]
         guard case .failed(let reason) = file.status else { return XCTFail() }
         XCTAssertTrue(reason.contains("not in the base"), reason)
     }
@@ -207,7 +198,7 @@ final class ApplyEngineTests: XCTestCase {
         +ins2
 
         """)
-        let base = InMemoryBase(files: ["f.txt": "one\ntwo\nthree\n"])
+        let base = InMemoryBase(texts: ["f.txt": "one\ntwo\nthree\n"])
         let file = ApplyEngine.apply(patch, to: base).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertEqual(file.postText, "one\ntwo\nins1\nins2\nthree\n")
@@ -226,7 +217,7 @@ final class ApplyEngineTests: XCTestCase {
         +b
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: [:])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: [:])).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertNil(file.baseText)
         XCTAssertEqual(file.postText, "a\nb\n")
@@ -244,7 +235,7 @@ final class ApplyEngineTests: XCTestCase {
         +a
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: ["new.txt": "x\n"])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["new.txt": "x\n"])).files[0]
         XCTAssertTrue(file.status.isFailure)
     }
 
@@ -259,7 +250,7 @@ final class ApplyEngineTests: XCTestCase {
         -b
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: ["gone.txt": "a\nb\n"])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["gone.txt": "a\nb\n"])).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertEqual(file.baseText, "a\nb\n")
         XCTAssertNil(file.postText)
@@ -279,7 +270,7 @@ final class ApplyEngineTests: XCTestCase {
         +x = 2
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: ["old.py": "x = 1\n"])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["old.py": "x = 1\n"])).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertEqual(file.path, "new.py")
         XCTAssertEqual(file.postText, "x = 2\n")
@@ -292,7 +283,7 @@ final class ApplyEngineTests: XCTestCase {
         new mode 100755
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: ["run.sh": "echo\n"])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["run.sh": "echo\n"])).files[0]
         XCTAssertEqual(file.status, .clean)
         XCTAssertEqual(file.postText, "echo\n")
         XCTAssertEqual(file.lineMap.postToBase, [1])
@@ -304,7 +295,7 @@ final class ApplyEngineTests: XCTestCase {
         Binary files a/img.png and b/img.png differ
 
         """)
-        let applied = ApplyEngine.apply(patch, to: InMemoryBase(files: ["img.png": "bytes"]))
+        let applied = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["img.png": "bytes"]))
         XCTAssertEqual(applied.files[0].status, .binary)
         XCTAssertEqual(applied.report.binary, 1)
         XCTAssertTrue(applied.report.isClean)
@@ -321,7 +312,7 @@ final class ApplyEngineTests: XCTestCase {
         +end
 
         """)
-        let file1 = ApplyEngine.apply(addsNewline, to: InMemoryBase(files: ["f.txt": "end"])).files[0]
+        let file1 = ApplyEngine.apply(addsNewline, to: InMemoryBase(texts: ["f.txt": "end"])).files[0]
         XCTAssertEqual(file1.postText, "end\n")
 
         let dropsNewline = try parse("""
@@ -334,7 +325,7 @@ final class ApplyEngineTests: XCTestCase {
         \\ No newline at end of file
 
         """)
-        let file2 = ApplyEngine.apply(dropsNewline, to: InMemoryBase(files: ["f.txt": "end\n"])).files[0]
+        let file2 = ApplyEngine.apply(dropsNewline, to: InMemoryBase(texts: ["f.txt": "end\n"])).files[0]
         XCTAssertEqual(file2.postText, "end")
     }
 
@@ -356,7 +347,7 @@ final class ApplyEngineTests: XCTestCase {
         Binary files a/c.png and b/c.png differ
 
         """)
-        let applied = ApplyEngine.apply(patch, to: InMemoryBase(files: ["a.txt": "a\n", "b.txt": "nope\n", "c.png": ""]))
+        let applied = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["a.txt": "a\n", "b.txt": "nope\n", "c.png": ""]))
         let report = applied.report
         XCTAssertEqual(report.clean, 1)
         XCTAssertEqual(report.failed, 1)
@@ -377,10 +368,183 @@ final class ApplyEngineTests: XCTestCase {
          two
 
         """)
-        let file = ApplyEngine.apply(patch, to: InMemoryBase(files: ["f.txt": "one\ntwo\n"])).files[0]
+        let file = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["f.txt": "one\ntwo\n"])).files[0]
         XCTAssertNil(file.lineMap.base(forPost: 2))
         XCTAssertEqual(file.lineMap.nearestBase(forPost: 2), 1)
         XCTAssertEqual(file.lineMap.nearestBase(forPost: 3), 1)
         XCTAssertEqual(file.lineMap.nearestBase(forPost: 4), 2)
+    }
+}
+
+// MARK: - Display lines and references (FR-9, reference format)
+
+final class DisplayLineTests: XCTestCase {
+
+    private func applied(_ patchText: String, base: String, path: String = "f.txt") throws -> AppliedFile {
+        let patch = try UnifiedDiffParser.parse(patchText)
+        return ApplyEngine.apply(patch, to: InMemoryBase(texts: [path: base])).files[0]
+    }
+
+    func testRemovedLinesInterleaveWhereTheyWere() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,4 +1,4 @@
+         one
+        -two
+        +TWO
+        +TWO-b
+        -three
+         four
+
+        """, base: "one\ntwo\nthree\nfour\n")
+        let lines = file.displayLines()
+        XCTAssertEqual(lines.map(\.text), ["one", "two", "three", "TWO", "TWO-b", "four"])
+        XCTAssertEqual(lines.map(\.kind), [.context, .removed, .removed, .added, .added, .context])
+        XCTAssertEqual(lines.map(\.baseLine), [1, 2, 3, nil, nil, 4])
+        XCTAssertEqual(lines.map(\.postLine), [1, nil, nil, 2, 3, 4])
+        XCTAssertEqual(file.displayLines(includeRemoved: false).map(\.text), ["one", "TWO", "TWO-b", "four"])
+    }
+
+    func testRemovedLinesAtEndOfFile() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,3 +1,1 @@
+         one
+        -two
+        -three
+
+        """, base: "one\ntwo\nthree\n")
+        XCTAssertEqual(file.displayLines().map(\.text), ["one", "two", "three"])
+        XCTAssertEqual(file.displayLines().map(\.kind), [.context, .removed, .removed])
+    }
+
+    func testDeletedFileShowsAllLinesRemoved() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        deleted file mode 100644
+        --- a/f.txt
+        +++ /dev/null
+        @@ -1,2 +0,0 @@
+        -a
+        -b
+
+        """, base: "a\nb\n")
+        XCTAssertEqual(file.displayLines().map(\.kind), [.removed, .removed])
+    }
+
+    func testFailedFileHasNoDisplayLines() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,1 +1,1 @@
+        -zzz
+        +ZZZ
+
+        """, base: "a\n")
+        XCTAssertTrue(file.status.isFailure)
+        XCTAssertTrue(file.displayLines().isEmpty)
+    }
+
+    func testEveryFixtureDisplayLineCountIsPostPlusRemoved() throws {
+        for name in try ApplyEngineTests.fixtureNames() {
+            let (_, applied) = try ApplyEngineTests.apply(fixture: name)
+            for file in applied.files where file.postText != nil {
+                let lines = file.displayLines()
+                let removed = file.lineMap.baseToPost.filter { $0 == nil }.count
+                XCTAssertEqual(lines.count, file.lineMap.postLineCount + removed, "\(name) \(file.path)")
+                // Post lines appear in order 1...n; base lines in order too.
+                XCTAssertEqual(lines.compactMap(\.postLine), Array(1...max(file.lineMap.postLineCount, 1)).filter { $0 <= file.lineMap.postLineCount }, "\(name) \(file.path) post order")
+                XCTAssertEqual(lines.compactMap(\.baseLine), Array(1...max(file.lineMap.baseLineCount, 1)).filter { $0 <= file.lineMap.baseLineCount }, "\(name) \(file.path) base order")
+            }
+        }
+    }
+
+    func testReferenceUsesPostLinesAndFileNameOnly() throws {
+        let file = try applied("""
+        diff --git a/pkg/downloader.go b/pkg/downloader.go
+        --- a/pkg/downloader.go
+        +++ b/pkg/downloader.go
+        @@ -1,3 +1,3 @@
+         a
+        -b
+        +B
+         c
+
+        """, base: "a\nb\nc\n", path: "pkg/downloader.go")
+        let lines = file.displayLines()
+        XCTAssertEqual(lines.count, 4)
+        XCTAssertEqual(LineReference.forDisplayLines(lines[0...3], fileName: file.change.fileName)?.description, "downloader.go L1:L3")
+        XCTAssertEqual(LineReference.forDisplayLines(lines[1...1], fileName: "downloader.go")?.description, "downloader.go -L2:L2")
+        XCTAssertEqual(LineReference.forDisplayLines(lines[1...2], fileName: "downloader.go")?.description, "downloader.go L2:L2", "post lines win over removed")
+        XCTAssertNil(LineReference.forDisplayLines(lines[0..<0], fileName: "x"))
+    }
+
+    func testScrollAnchorsStepOverAddedAndRemovedLines() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,4 +1,4 @@
+         one
+        -two
+        +TWO
+        +TWO-b
+        -three
+         four
+
+        """, base: "one\ntwo\nthree\nfour\n")
+        let lines = file.displayLines()
+        // one(1) two(-2) three(-3) TWO(+) TWO-b(+) four(4)
+        XCTAssertEqual(lines.anchorBase(at: 0), 1)
+        XCTAssertEqual(lines.anchorBase(at: 3), 3, "an added line anchors to the line above it")
+        XCTAssertEqual(lines.anchorBase(at: 4), 3)
+        XCTAssertEqual(lines.anchorBase(at: 5), 4)
+        XCTAssertEqual(lines.index(atOrAfterBase: 1), 0)
+        XCTAssertEqual(lines.index(atOrAfterBase: 3), 2)
+        XCTAssertEqual(lines.index(atOrAfterBase: 4), 5)
+        XCTAssertEqual(lines.index(atOrAfterBase: 99), 5, "past the end lands on the last line")
+        let noRemoved = file.displayLines(includeRemoved: false)
+        XCTAssertEqual(noRemoved.index(atOrAfterBase: 2), 3, "base 2 is gone; the next base line is four at index 3")
+        XCTAssertNil([DisplayLine]().anchorBase(at: 0))
+    }
+
+    func testPostAtOrAfterBaseSkipsRemovedLines() throws {
+        let file = try applied("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,4 +1,3 @@
+         one
+        -two
+        -three
+        +X
+         four
+
+        """, base: "one\ntwo\nthree\nfour\n")
+        XCTAssertEqual(file.lineMap.post(atOrAfterBase: 1), 1)
+        XCTAssertEqual(file.lineMap.post(atOrAfterBase: 2), 3, "two and three are gone; four is post 3")
+        XCTAssertEqual(file.lineMap.post(atOrAfterBase: 4), 3)
+        XCTAssertEqual(file.lineMap.post(atOrAfterBase: 99), 3, "past the end lands on the last line")
+    }
+}
+
+/// The M2 gate session: the four Go patches against one merged
+/// synthetic base (D4). Every file in every patch must apply clean.
+final class MergedBaseApplyTests: XCTestCase {
+    func testTheFourGoPatchesApplyCleanAgainstTheirMergedBase() throws {
+        let patches = try (15...18).map { try UnifiedDiffParser.parse(contentsOf: ApplyEngineTests.patchesDir.appendingPathComponent("fixture-\($0).patch")) }
+        let files = try SyntheticBase.merged(for: patches)
+        let base = InMemoryBase(label: "merged", texts: Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0.text) }))
+        for (i, patch) in patches.enumerated() {
+            let applied = ApplyEngine.apply(patch, to: base)
+            for file in applied.files {
+                XCTAssertEqual(file.status, file.change.isBinary ? .binary : .clean, "fixture-\(15 + i) \(file.path): \(file.status)")
+            }
+        }
     }
 }

@@ -55,6 +55,12 @@ targets:
     dependencies:
       - package: PatchAdam
         product: PatchModel
+      - package: PatchAdam
+        product: BaseLoader
+      - package: PatchAdam
+        product: ApplyEngine
+      - package: PatchAdam
+        product: DiffEngine
 
 schemes:
   PatchAdam:

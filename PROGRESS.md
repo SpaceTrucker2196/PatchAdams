@@ -4,6 +4,47 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — M2 (#2): the viewer
+
+**Done.** The app is now a product to look at. `SessionController`
+(main actor, `@Observable`) owns base, columns, selection, scroll lock,
+request text; an `Engines` actor runs apply off the main actor and
+hands back `AppliedPatch` values. Zones: request panel (FR-6, open on a
+new session), file tree with per-patch chips, filter and tests-only
+(FR-8), 2–4 columns each with label **and** patch file name in the
+header (FR-4), full post-patch text with removed lines inline and a
+dual base/post gutter (FR-9), scroll lock by base-line anchor (FR-10),
+hide / reorder / read per column (FR-11), reduced mode above 50,000
+lines, raw hunks for a failed file (FR-3). Loading: directory, archive
+or git revision base, patches by picker, drop or paste (FR-1, FR-2),
+and "Rebuild Base from Patches" (`SyntheticBase.merged`, D4). Copy
+Reference gives `filename Lstart:Lend` from the selection (MISSION §3).
+Engine additions, all unit-tested: `SyntheticBase.merged`,
+`InMemoryBase`, `AppliedFile.displayLines`, `LineReference`,
+`[DisplayLine].anchorBase` / `index(atOrAfterBase:)`,
+`LineMap.post(atOrAfterBase:)`. 98 tests green.
+
+**Measured.** 10,000-line file: render + full layout 198 ms (debug).
+Scroll lock on a 6,037-line file: both columns at base line 2927.
+First window to usable session (demo, 4 patches): well under 2 s.
+Not instrumented: scrolling frame rate — by eye it is smooth; an
+Instruments pass is still owed before Phase 3 adds per-line badges.
+
+**Learned, macOS 27.** `NSRulerView`'s content layer is pane-sized and
+views no longer clip to bounds, so a ruler that fills its dirty rect
+paints over every neighbouring column; the gutter is a plain sibling
+view now. SwiftUI's `HSplitView` pane on a secondary display can
+screenshot stale through `screencapture -l`; `--shot` self-renders.
+
+**Next.** M3 (#3): `AlignmentEngine`, selection badges, absent notices,
+comparison panel, golden patch, cross-column search.
+
+**Flagged for owner spot-check** (UI wording and shortcuts, autonomy
+contract "decides and flags"): Copy Reference is ⇧⌘C (not in the
+spec's table); the column actions live in a "Columns" menu with
+⌘1–4, `]`/`[`, ⌘L, ⌘R, ⌥⌘T (tests only), ⌥⌘- (removed lines);
+`DebugHooks` reads fixtures by `#filePath` in debug builds only.
+
 ## 2026-10-14 — M1 (#1): BaseLoader, ApplyEngine, DiffEngine
 
 **Done.** Three engine targets, 48 new tests (76 total), CLI `apply`

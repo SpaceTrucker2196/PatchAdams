@@ -19,16 +19,19 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
     may differ.)
   - [x] Line maps round-trip: post line → base line → post line for
     every unchanged line.
-- [ ] **M2** (L) — Phase 2, viewer: window, file tree, 2–4 columns,
+- [x] **M2** (L) — Phase 2, viewer: window, file tree, 2–4 columns,
   full-file rendering, dual gutters, scroll lock, labels with patch
-  file names, request panel.
-  - [ ] Open a 4-patch session and read every touched file in every
-    column without leaving the window.
-  - [ ] Copy a reference from a selection and get `filename
-    Lstart:Lend` with the correct post-patch lines.
-  - [ ] Scroll lock keeps the same function in view across columns
-    through a 2,000-line file.
-  - [ ] Each column header shows its patch file name; tab-mapping
+  file names, request panel. 2026-10-14.
+  - [x] Open a 4-patch session and read every touched file in every
+    column without leaving the window. (kettle-1…18 on a merged
+    synthetic base; `PatchAdam --demo`.)
+  - [x] Copy a reference from a selection and get `filename
+    Lstart:Lend` with the correct post-patch lines. (`--select A:10-20`
+    → `brew_task.go L10:L17` on the pasteboard.)
+  - [x] Scroll lock keeps the same function in view across columns
+    through a 2,000-line file. (6,037-line heater_test.go, two
+    columns with different line maps, both at base line 2927.)
+  - [x] Each column header shows its patch file name; tab-mapping
     confusion is impossible.
 - [ ] **M3** (L) — Phase 3, comparison: selection alignment, status
   badges, absent notices with nearest-hunk links, comparison panel,

@@ -206,7 +206,7 @@ final class DiffEngineTests: XCTestCase {
             let unified = "diff --git a/f b/f\n" + ours.unified(a: a, b: b, aName: "a/f", bName: "b/f")
             let patch = try UnifiedDiffParser.parse(unified)
             XCTAssertFalse(patch.files[0].hunks.isEmpty, "\(label): no hunks rendered")
-            let applied = ApplyEngine.apply(patch, to: InMemoryBase(files: ["f": baseText]))
+            let applied = ApplyEngine.apply(patch, to: InMemoryBase(texts: ["f": baseText]))
             XCTAssertEqual(applied.files[0].status, .clean, "\(label): our own diff must apply clean")
             XCTAssertEqual(applied.files[0].postText.map(DiffEngine.splitLines), b, "\(label): round trip through unified")
         }
@@ -230,11 +230,4 @@ final class DiffEngineTests: XCTestCase {
         }
         return out
     }
-}
-
-struct InMemoryBase: FileProvider {
-    var files: [String: String]
-    var origin: BaseOrigin { .directory(URL(fileURLWithPath: "/memory")) }
-    func contents(of path: String) throws -> Data? { files[path].map { Data($0.utf8) } }
-    func allPaths() throws -> [String] { files.keys.sorted() }
 }

@@ -20,12 +20,15 @@ public enum BaseOrigin: Sendable, Hashable, Codable {
     case directory(URL)
     case gitRevision(repository: URL, revision: String, commit: String)
     case archive(URL)
+    /// Files handed over in memory, e.g. a base rebuilt from the patches.
+    case inMemory(String)
 
     public var description: String {
         switch self {
         case .directory(let url): return url.path
         case .gitRevision(let repo, let rev, let commit): return "\(repo.lastPathComponent)@\(rev) (\(commit.prefix(12)))"
         case .archive(let url): return url.lastPathComponent
+        case .inMemory(let label): return label
         }
     }
 }

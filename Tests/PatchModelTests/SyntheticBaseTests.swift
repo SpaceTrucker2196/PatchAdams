@@ -197,3 +197,68 @@ final class SyntheticBaseTests: XCTestCase {
         }
     }
 }
+
+final class MergedSyntheticBaseTests: XCTestCase {
+
+    static let fixturesDir = FixtureTests.fixturesDir
+
+    func testMergedBaseFillsEachPatchsGapsFromTheOther() throws {
+        let a = try UnifiedDiffParser.parse("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -1,2 +1,2 @@
+         one
+        -two
+        +TWO
+
+        """)
+        let b = try UnifiedDiffParser.parse("""
+        diff --git a/f.txt b/f.txt
+        --- a/f.txt
+        +++ b/f.txt
+        @@ -4,2 +4,2 @@
+         four
+        -five
+        +FIVE
+
+        """)
+        let merged = try SyntheticBase.merged(for: [a, b])
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged[0].text, "one\ntwo\n\(SyntheticBase.filler(line: 3))\nfour\nfive\n")
+    }
+
+    func testMergedBaseRejectsDisagreement() throws {
+        let a = try UnifiedDiffParser.parse("diff --git a/f.txt b/f.txt\n--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-one\n+1\n")
+        let b = try UnifiedDiffParser.parse("diff --git a/f.txt b/f.txt\n--- a/f.txt\n+++ b/f.txt\n@@ -1,1 +1,1 @@\n-uno\n+1\n")
+        XCTAssertThrowsError(try SyntheticBase.merged(for: [a, b])) { error in
+            XCTAssertTrue("\(error)".contains("disagree about base line 1"), "\(error)")
+        }
+    }
+
+    /// The four kettle patches (kettle-1…18) share one real base; the
+    /// merged synthetic base must be consistent across all of them.
+    func testTheFourGoPatchesShareOneMergedBase() throws {
+        let patches = try (15...18).map { try UnifiedDiffParser.parse(contentsOf: Self.fixturesDir.appendingPathComponent("fixture-\($0).patch")) }
+        let merged = try SyntheticBase.merged(for: patches)
+        let paths = Set(merged.map(\.path))
+        XCTAssertGreaterThanOrEqual(merged.count, 10)
+        // Every file any of the four modifies is present once.
+        for patch in patches {
+            for file in patch.files where file.kind != .added && !file.isBinary {
+                XCTAssertTrue(paths.contains(file.oldPath ?? ""), file.path)
+            }
+        }
+        // And every single-patch base is a sub-reconstruction of the merged one.
+        for patch in patches {
+            let single = Dictionary(uniqueKeysWithValues: try SyntheticBase.files(for: patch).map { ($0.path, $0.text) })
+            for file in merged where single[file.path] != nil {
+                let mergedLines = file.text.split(separator: "\n", omittingEmptySubsequences: false).dropLast()
+                let singleLines = single[file.path]!.split(separator: "\n", omittingEmptySubsequences: false).dropLast()
+                for (i, line) in singleLines.enumerated() where i < mergedLines.count && line != Substring(SyntheticBase.filler(line: i + 1)) {
+                    XCTAssertEqual(mergedLines[i], line, "\(file.path) L\(i + 1)")
+                }
+            }
+        }
+    }
+}
