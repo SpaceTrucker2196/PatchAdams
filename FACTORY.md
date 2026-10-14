@@ -1,0 +1,112 @@
+# PatchAdam — factory runbook
+
+## 0. TL;DR
+
+```
+git clone git@github.com:SpaceTrucker2196/PatchAdam.git
+cd PatchAdam
+make test        # swift test --enable-code-coverage — must exit 0
+make build       # xcodegen + xcodebuild, warnings are errors
+make harness     # parse every fixture patch
+```
+
+If `make test` is green and `make build` produces no warnings, the
+factory is operational.
+
+## Layout
+
+```
+Package.swift            engine packages + CLI harness (SwiftPM, no deps)
+Sources/PatchModel/      unified-diff parser → Patch/FileChange/Hunk/Line
+Sources/patchadam/       CLI harness: parse, hunks
+Tests/PatchModelTests/   XCTest; FixtureTests walks Fixtures/patches
+Fixtures/patches/        19 real patches (fixture*.patch) — the gate set
+App/                     SwiftUI shell (PatchAdamApp.swift, Info.plist, entitlements)
+project.yml              xcodegen spec; PatchAdam.xcodeproj is generated, gitignored
+docs/spec.md             the product spec (Oct 14, 2026)
+docs/dark-factory.md     pattern + autonomy contract
+docs/converge.md         one production order → shipped
+wiki/                    knowledge base, published by pages.yml
+tools/                   audit-workflows.sh, billing/ledger.py
+```
+
+Planned packages, added as their first code lands (docs/spec.md
+"Packages"): `BaseLoader`, `ApplyEngine`, `DiffEngine` (Phase 1),
+`AlignmentEngine` (Phase 3), `SessionModel` (Phase 4). Dependency
+rules are in `Package.swift`'s header comment and `AGENTS.md`.
+
+## Toolchain
+
+- macOS 14+ target; built on macOS 27 / Xcode 27 / Swift 6.4 as of
+  2026-10-14. Package tools-version 6.0, language mode 6, strict
+  concurrency.
+- `xcodegen` (Homebrew) for the app project. Engines need only
+  `swift`.
+- No third-party dependencies. Git access is by shelling out to the
+  system `git` (spec, Stack). Adding a dependency is a stops-and-asks.
+
+## CI
+
+- `.github/workflows/test.yml` — on push to `main`: `swift test
+  --enable-code-coverage`, then the harness over every fixture.
+  Post-hoc judge only; the merge gate is local green pre-push.
+- `.github/workflows/pages.yml` — publishes `wiki/` to GitHub Pages.
+- `make audit` checks both against the three lab findings
+  (SECURITY.md). Run it before adding any workflow.
+
+## Cold-start sanity loop
+
+1. Fresh clone.
+2. `make test` → exit 0 (19 tests at scaffold time).
+3. `make build` → zero warnings (project.yml treats them as errors).
+4. `make harness` → one summary block per fixture, exit 0.
+
+## Code visualization (cygnus)
+
+This repo is meant to be legible in **cygnus** — our code-viz tool
+(`~/projects/cygnus`, macOS). It models the system as a knowledge
+graph from repository evidence, renders it as a 2D pattern visualizer
+(cycles, coverage, callers, roles), and doubles as this factory's ops
+dashboard. Register the repo once, re-index after large changes:
+
+    cd ~/projects/cygnus/CygnusCore
+    swift run cygnus register ~/projects/PatchAdam
+    swift run cygnus index
+
+Or add it in the app, which also installs/refreshes the factory.
+
+Keeping the picture honest is a repo-side job. Cygnus reads:
+
+- **Source, directly** — Swift under `Sources/`, `Tests/`, `App/`;
+  no build required.
+- **Factory docs** — `MISSION.md`, `AGENTS.md`/`CLAUDE.md`,
+  `FACTORY.md`, `PROGRESS.md`, `ROADMAP.md`, `README.md`, and
+  markdown under `docs/` (so `docs/spec.md` reaches the dashboard).
+- **`LEDGER.md` / `METRICS.md` / `DECISIONS.md` tables** — parsed
+  *positionally* by column order. Keep the shipped headers and column
+  order exactly; a renamed or reordered column silently drops rows
+  from the dashboard. `LEDGER.md` is machine-owned (read-only in the
+  app), `METRICS.md` and `DECISIONS.md` are append-only.
+- **`docs/converge.md` steps** — numbered `N. **Title.** detail…`.
+  Keep that shape or the loop stops rendering.
+- **Commit subjects** — `(closes #N)` / `fixes #N` / `resolves #N`
+  links a commit to its production order; `chore(ledger):` and
+  metrics commits are recognised and kept out of throughput.
+- **Coverage rings** — the oracle runs with `--enable-code-coverage`.
+  On Swift 6.4 the llvm-cov export lands at
+  `.build/out/Products/Debug/codecov/PatchAdam.json` (older
+  toolchains: `.build/<triple>/debug/codecov/*.json`). Cygnus only
+  ever reads what a test run produced.
+- **CI flow** — no `Fastfile`, so `Makefile` targets (`test`,
+  `build`, `harness`, `audit`) and the two workflows are the diagram.
+  Name targets for what they do.
+- **GitHub Pages** — the `wiki/` site shows as a live preview.
+
+## Where to read next
+
+| Question | Read |
+|---|---|
+| What is this product? | `MISSION.md`, then `docs/spec.md` |
+| How do agents behave here? | `AGENTS.md`, `docs/dark-factory.md` |
+| How does one order ship? | `docs/converge.md` |
+| What's in flight? | `PROGRESS.md`, `ROADMAP.md` |

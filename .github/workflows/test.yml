@@ -1,0 +1,23 @@
+# Post-hoc judge: re-runs the oracle on every push to main. Never the
+# merge gate — the gate is local green pre-push (FACTORY.md).
+name: test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  swift-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Oracle
+        run: swift test --enable-code-coverage
+      - name: Harness
+        run: swift run patchadam parse Fixtures/patches/*.patch

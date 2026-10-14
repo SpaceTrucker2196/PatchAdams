@@ -1,0 +1,40 @@
+# PatchAdam — factory targets. See FACTORY.md for the runbook.
+
+XCODEGEN   := xcodegen
+SWIFT      := swift
+XCODEBUILD := xcodebuild
+
+PROJECT := PatchAdam.xcodeproj
+SCHEME  := PatchAdam
+DEST    := platform=macOS
+
+.PHONY: all generate build test harness audit clean
+
+all: test build
+
+# The oracle. Engine packages, coverage on — cygnus reads the
+# resulting codecov artifact under .build/<triple>/debug/codecov/.
+test:
+	$(SWIFT) test --enable-code-coverage
+
+# Regenerate the Xcode project from project.yml (the .xcodeproj is
+# gitignored; project.yml is the source of truth).
+generate:
+	$(XCODEGEN) generate
+
+# Build the macOS app. Warnings are errors in project.yml, so a
+# warning fails this target.
+build: generate
+	$(XCODEBUILD) -project $(PROJECT) -scheme $(SCHEME) -destination '$(DEST)' \
+	  -derivedDataPath .build/DerivedData build
+
+# Smoke-run the engines on every fixture patch.
+harness:
+	$(SWIFT) run patchadam parse Fixtures/patches/*.patch
+
+# Workflow audit: zero dependencies, grep and awk only.
+audit:
+	@tools/audit-workflows.sh
+
+clean:
+	rm -rf .build $(PROJECT)
