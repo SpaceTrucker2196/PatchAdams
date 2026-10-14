@@ -12,3 +12,4 @@ whole ledger: `ledger.py --energy-total`.
 <!-- ledger rows appended here -->
 | 25cabcc | 2026-10-14T17:21:22Z | claude-fable-5-1 | 1352 | 118576 | 5325396 | 362878 | 14.5312 | M0 scaffold from DF_Template; first row, --since session start, cwd ~/projects |
 | e05f229 | 2026-10-14T17:47:12Z | claude-fable-5-1 | 1382 | 67110 | 4012923 | 350572 | 11.3840 | #6 synthetic fixture bases (D4), 0d88cb9 |
+| c7456ec | 2026-10-14T20:22:51Z | claude-fable-5-1 | 1770 | 362365 | 9176360 | 563343 | 31.6969 | #1 M1 engines: BaseLoader, ApplyEngine, DiffEngine, 6f70373 |
