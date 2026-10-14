@@ -4,6 +4,29 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — #6: synthetic fixture bases
+
+**Done.** `SyntheticBase` (in `PatchModel`) rebuilds the base of every
+non-added, non-binary file from the patch's own hunks — context and
+removed lines at their declared base numbers, numbered filler lines in
+the gaps, file ends at the last hunk. `patchadam synth-base` writes a
+set; `make bases` regenerates all 19 (155 files, 1.5 MB, under
+`Fixtures/bases/<fixture>/`). `SyntheticBaseTests` covers the rules
+(gaps, no-newline, pure insertions, renames, added/binary skipped,
+overlapping hunks are an error), checks the stored set byte-for-byte
+against the generator, and checks every fixture hunk is found verbatim
+at its declared base offset. Decision recorded as D4. 28 tests green,
+build warning-clean.
+
+**Next.** M1 (#1) is unblocked for the apply gate: `ApplyEngine` can
+apply every fixture against `Fixtures/bases/<fixture>/` and must report
+every file `clean`. Fuzz needs its own perturbed fixtures. Full-repo
+loading tests still need option 1 from #6 (upstream URL + SHA); that
+is a separate order.
+
+**Open, for the owner.** Unchanged: fixture licensing, spec open
+questions.
+
 ## 2026-10-14 — M0: factory scaffold from DF_Template
 
 **Done.** Repo created from `DF_Template` (Track B, fresh). Spec

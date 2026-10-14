@@ -6,6 +6,9 @@ import PatchModel
 //
 //   patchadam parse <patch>...     summarize each patch: files, kinds, +/- lines
 //   patchadam hunks <patch>        list every hunk with its Lstart:Lend ranges
+//   patchadam synth-base <patch> <dir>
+//                                  write the patch's synthetic base files under <dir>
+//                                  (Fixtures/bases; see SyntheticBase.swift, DECISIONS.md D4)
 
 let args = Array(CommandLine.arguments.dropFirst())
 
@@ -13,6 +16,7 @@ func usage() -> Never {
     FileHandle.standardError.write(Data("""
     usage: patchadam parse <patch>...
            patchadam hunks <patch>
+           patchadam synth-base <patch> <dir>
 
     """.utf8))
     exit(2)
@@ -59,6 +63,24 @@ case "hunks":
                 print("  \(file.fileName) \(new)   base \(old)   \(hunk.sectionHeading ?? "")")
             }
         }
+    } catch {
+        failures += 1
+        FileHandle.standardError.write(Data("\(paths[0]): \(error)\n".utf8))
+    }
+case "synth-base":
+    // The one place the harness writes files: regenerating the fixture
+    // base set. Engines never write (AGENTS.md "Forbidden APIs").
+    guard paths.count == 2 else { usage() }
+    do {
+        let patch = try UnifiedDiffParser.parse(contentsOf: URL(fileURLWithPath: paths[0]))
+        let root = URL(fileURLWithPath: paths[1])
+        let files = try SyntheticBase.files(for: patch)
+        for file in files {
+            let url = root.appendingPathComponent(file.path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(file.text.utf8).write(to: url)
+        }
+        print("\((paths[0] as NSString).lastPathComponent): \(files.count) base files → \(paths[1])")
     } catch {
         failures += 1
         FileHandle.standardError.write(Data("\(paths[0]): \(error)\n".utf8))

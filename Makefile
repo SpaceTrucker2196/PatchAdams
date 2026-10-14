@@ -8,7 +8,7 @@ PROJECT := PatchAdam.xcodeproj
 SCHEME  := PatchAdam
 DEST    := platform=macOS
 
-.PHONY: all generate build test harness audit clean
+.PHONY: all generate build test harness bases audit clean
 
 all: test build
 
@@ -31,6 +31,14 @@ build: generate
 # Smoke-run the engines on every fixture patch.
 harness:
 	$(SWIFT) run patchadam parse Fixtures/patches/*.patch
+
+# Regenerate Fixtures/bases from the fixture patches (issue #6, D4).
+# SyntheticBaseTests fails when the stored set drifts from this output.
+bases:
+	rm -rf Fixtures/bases
+	for p in Fixtures/patches/*.patch; do \
+	  $(SWIFT) run patchadam synth-base $$p Fixtures/bases/$$(basename $$p .patch) || exit 1; \
+	done
 
 # Workflow audit: zero dependencies, grep and awk only.
 audit:

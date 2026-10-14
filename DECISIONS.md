@@ -16,6 +16,7 @@ next agent will cheerfully rebuild them.
 | D1 | 2026-10-14 | Zero third-party dependencies; own Myers/patience diff; shell out to system `git` | adopted | docs/spec.md "Stack" | — |
 | D2 | 2026-10-14 | Direct notarized distribution, app not sandboxed; no App Store | provisional | docs/spec.md open questions; project.yml | — |
 | D3 | 2026-10-14 | Ship the slop category list as the session default; editable per session | provisional | docs/spec.md "Category" | — |
+| D4 | 2026-10-14 | Fixture bases are synthetic, rebuilt from each patch's own hunks and checked in under `Fixtures/bases/` | adopted | issue #6; `SyntheticBaseTests` | — |
 
 `status` is one of:
 
@@ -76,3 +77,36 @@ the first finding slower and the export inconsistent across sessions.
 
 **What would change this.** A second review team with its own
 taxonomy; then an importable list format lands beside the default.
+
+## D4 — synthetic fixture bases
+
+**Decision.** The 19 fixture patches came without their base
+revisions. For the Phase 1 apply gate the base of every modified,
+renamed, copied or deleted file is rebuilt from the patch itself:
+context and removed lines sit at their declared base line numbers,
+gaps between hunks hold a filler line (`~ synthetic base line N ~`),
+and the file ends at the last hunk's last base line. The generator is
+`SyntheticBase` in `PatchModel`; `make bases` writes the set to
+`Fixtures/bases/<fixture>/<path>`, and `SyntheticBaseTests` fails the
+oracle when the stored set drifts from the generator's output.
+Added and binary files have no base file.
+
+**Why.** Issue #6 weighed two options. Fetching the upstream repos at
+recorded SHAs needs the network at fixture-fetch time and leaves the
+gate depending on third-party hosts staying put. The synthetic set is
+offline, deterministic, in-tree, and every hunk applies at its exact
+offset, so a clean apply is a hard expectation rather than a hope.
+155 files, 1.5 MB.
+
+**What it does not give.** Lines outside any hunk are filler, not the
+real file, and nothing after the last hunk exists. So the synthetic
+set cannot exercise fuzz, cross-file context, or whole-repository
+loading. Fuzz needs separate, deliberately perturbed fixtures; full
+repository loading (FR-1 git revisions) needs option 1 — upstream URL
+plus base SHA per fixture, fetched into a cache outside the repo —
+which stays open as a later production order.
+
+**What would change this.** Clearance to vendor the upstream base
+trees (the fixtures are third-party code, PROGRESS.md "Open"), or a
+measured gap where the apply engine behaves differently on real bases
+than on synthetic ones.

@@ -47,6 +47,10 @@ Targets and the rules between them (`Package.swift` enforces them):
 - **Fixtures**: `Fixtures/patches/fixture*.patch` are the gate set
   (ROADMAP.md). `FixtureTests` asserts every one parses with the file
   count grep reports; a new fixture needs a row in that table.
+  `Fixtures/bases/<fixture>/` is each patch's synthetic base, generated
+  by `make bases` (DECISIONS.md D4) — never hand-edit it; a new or
+  changed fixture means rerunning `make bases` and committing the
+  result, or `SyntheticBaseTests` goes red.
 
 ## Discipline
 
