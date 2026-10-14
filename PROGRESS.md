@@ -4,6 +4,47 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — M1 (#1): BaseLoader, ApplyEngine, DiffEngine
+
+**Done.** Three engine targets, 48 new tests (76 total), CLI `apply`
+and `diff`, `make harness` now applies every fixture.
+- `BaseLoader`: `FileProvider` protocol; `DirectoryBase`,
+  `GitRevisionBase` (resolves the revision to a commit at open;
+  `rev-parse`/`ls-tree`/`cat-file` only, enforced by an allow-list),
+  `ArchiveBase` (ustar + GNU long names + pax paths, gzip, zip stored
+  and deflate via Foundation's `.zlib`; a single top-level prefix is
+  stripped and reported). Paths with `..`, absolute or empty are
+  rejected.
+- `ApplyEngine`: GNU-patch-style placement — declared line plus
+  running offset, then outward search, then fuzz 1 and 2 dropping
+  leading/trailing context. Per file: `clean` / `fuzz(n)` / `failed`
+  (post text nil, raw hunks kept) / `binary`; full post text;
+  `LineMap` post↔base plus `nearestBase` for added lines; per-hunk
+  `HunkPlacement` with offset and fuzz. `ApplyReport` counts.
+- `DiffEngine`: linear-space Myers (middle snake), patience on top
+  (unique-line LIS anchors, Myers in the gaps), tokens via the same
+  Myers; `LineDiff.unifiedHunks` with `diff -u` grouping; `TokenDiff
+  .similarity` for alignment.
+- Gates: all 19 fixtures apply `clean` against `Fixtures/bases`; line
+  maps round-trip on 10k+ unchanged lines; 20 sampled pairs match
+  `git diff --no-index --minimal` on changed-line counts and our
+  unified output re-applies to the post text.
+
+**Measured.** 6,037-line Go test file with 1,778 changed lines:
+patience 30 ms, Myers 90 ms, debug build, 1,778 = git's count.
+
+**Next.** M2 (#2): the viewer. Engines hand the shell `AppliedFile`
+(shared post text + `LineMap`) and `LineDiff` per file; the column
+view renders from those. Open: fuzz has only rule tests — a perturbed
+fixture set would exercise it on real code.
+
+**Flagged for owner spot-check** (autonomy contract "decides and
+flags"): none UI-visible. Two judgement calls inside the engine
+lists: (1) hunk *count* is not part of the git gate, only changed-line
+counts, because equally minimal scripts slide differently; (2) the git
+gate test is the one `Process` use outside `BaseLoader` — it is the
+oracle the gate names, in a test, skipped when git is missing.
+
 ## 2026-10-14 — #6: synthetic fixture bases
 
 **Done.** `SyntheticBase` (in `PatchModel`) rebuilds the base of every

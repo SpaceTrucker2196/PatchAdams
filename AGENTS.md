@@ -25,9 +25,9 @@ Targets and the rules between them (`Package.swift` enforces them):
 | Target | Does | May import |
 |---|---|---|
 | `PatchModel` | Parse unified diffs → `Patch`, `FileChange`, `Hunk`, `Line` | Foundation |
-| `BaseLoader` *(Phase 1)* | Read-only file provider: git revision, directory, archive | Foundation |
-| `ApplyEngine` *(Phase 1)* | Apply in memory with fuzz; post-patch text, line map, report | PatchModel, BaseLoader |
-| `DiffEngine` *(Phase 1)* | Myers + patience on lines; LCS on tokens | nothing |
+| `BaseLoader` | Read-only file provider: git revision, directory, archive | Foundation |
+| `ApplyEngine` | Apply in memory with fuzz; post-patch text, line map, report | PatchModel, BaseLoader |
+| `DiffEngine` | Myers + patience on lines; LCS on tokens | nothing |
 | `AlignmentEngine` *(Phase 3)* | Region → anchor with status + confidence | ApplyEngine, DiffEngine |
 | `SessionModel` *(Phase 4)* | Session, Finding, Ranking, Pin, ManualAnchor; Markdown/JSON export | PatchModel |
 | `patchadam` | CLI harness over the engines | any engine |

@@ -8,15 +8,16 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
 - [x] **M0** (S) — Factory scaffold: SwiftPM engines + app shell,
   `PatchModel` parser, 19 fixtures parse, `make test` green.
   2026-10-14.
-- [ ] **M1** (L) — Phase 1, engines: `BaseLoader`, `ApplyEngine`,
-  `DiffEngine`, CLI harness, unit tests.
+- [x] **M1** (L) — Phase 1, engines: `BaseLoader`, `ApplyEngine`,
+  `DiffEngine`, CLI harness, unit tests. 2026-10-14.
   - [x] Every fixture patch parses, including renames, binary stubs,
     mode changes.
-  - [ ] Every fixture patch applies in memory against its base with a
-    per-file report.
-  - [ ] Line diff output matches `git diff --no-index` for 20 sampled
-    file pairs.
-  - [ ] Line maps round-trip: post line → base line → post line for
+  - [x] Every fixture patch applies in memory against its base with a
+    per-file report. (Synthetic bases, D4; every file `clean`.)
+  - [x] Line diff output matches `git diff --no-index` for 20 sampled
+    file pairs. (Changed-line counts equal `--minimal`; hunk sliders
+    may differ.)
+  - [x] Line maps round-trip: post line → base line → post line for
     every unchanged line.
 - [ ] **M2** (L) — Phase 2, viewer: window, file tree, 2–4 columns,
   full-file rendering, dual gutters, scroll lock, labels with patch

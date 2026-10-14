@@ -28,9 +28,13 @@ build: generate
 	$(XCODEBUILD) -project $(PROJECT) -scheme $(SCHEME) -destination '$(DEST)' \
 	  -derivedDataPath .build/DerivedData build
 
-# Smoke-run the engines on every fixture patch.
+# Smoke-run the engines on every fixture patch: parse all, then apply
+# each against its synthetic base (every file must come back clean).
 harness:
 	$(SWIFT) run patchadam parse Fixtures/patches/*.patch
+	for p in Fixtures/patches/*.patch; do \
+	  $(SWIFT) run patchadam apply Fixtures/bases/$$(basename $$p .patch) $$p || exit 1; \
+	done
 
 # Regenerate Fixtures/bases from the fixture patches (issue #6, D4).
 # SyntheticBaseTests fails when the stored set drifts from this output.
