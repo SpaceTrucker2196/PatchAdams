@@ -10,3 +10,4 @@ whole ledger: `ledger.py --energy-total`.
 | commit | date | model(s) | input | output | cache_read | cache_write | cost_usd | summary |
 |--------|------|----------|------:|-------:|-----------:|------------:|---------:|---------|
 <!-- ledger rows appended here -->
+| 25cabcc | 2026-10-14T17:21:22Z | claude-fable-5-1 | 1352 | 118576 | 5325396 | 362878 | 14.5312 | M0 scaffold from DF_Template; first row, --since session start, cwd ~/projects |
