@@ -22,7 +22,7 @@ Reference gives `filename Lstart:Lend` from the selection (MISSION §3).
 Engine additions, all unit-tested: `SyntheticBase.merged`,
 `InMemoryBase`, `AppliedFile.displayLines`, `LineReference`,
 `[DisplayLine].anchorBase` / `index(atOrAfterBase:)`,
-`LineMap.post(atOrAfterBase:)`. 98 tests green.
+`LineMap.post(atOrAfterBase:)`. 88 tests green.
 
 **Measured.** 10,000-line file: render + full layout 198 ms (debug).
 Scroll lock on a 6,037-line file: both columns at base line 2927.
