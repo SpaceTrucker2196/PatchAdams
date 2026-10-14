@@ -54,6 +54,19 @@ struct SessionCommands: Commands {
                     .keyboardShortcut(KeyEquivalent(Character(String(i + 1))), modifiers: .command)
             }
             Divider()
+            ForEach(0..<4, id: \.self) { i in
+                Button(String(localized: "Set Column \(i + 1) Golden")) {
+                    let visible = controller.visibleColumns
+                    if i < visible.count { controller.setGolden(visible[i].id) }
+                }
+                .keyboardShortcut(KeyEquivalent(Character(String(i + 1))), modifiers: [.command, .shift])
+            }
+            Divider()
+            Button(String(localized: "Pin Selection")) { controller.pinSelection() }
+                .keyboardShortcut("p")
+            Button(String(localized: "Search All Columns")) { controller.showSearch = true }
+                .keyboardShortcut("f")
+            Divider()
             Button(String(localized: "Next Hunk")) { controller.jumpHunk(forward: true) }
                 .keyboardShortcut("]", modifiers: [])
             Button(String(localized: "Previous Hunk")) { controller.jumpHunk(forward: false) }

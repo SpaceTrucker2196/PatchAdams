@@ -61,6 +61,8 @@ targets:
         product: ApplyEngine
       - package: PatchAdam
         product: DiffEngine
+      - package: PatchAdam
+        product: AlignmentEngine
 
 schemes:
   PatchAdam:

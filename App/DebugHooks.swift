@@ -11,6 +11,9 @@ import ApplyEngine
 ///   --file <path>          select this file in the tree
 ///   --select A:12-20       select display lines 12…20 (1-based) in column A, copy the reference
 ///   --scroll B:1200        scroll column B so display line 1200 is at the top (scroll lock follows)
+///   --golden B             set column B golden (logs the time to re-render every column)
+///   --search "text"        search all columns, log hits per file and column
+///   --pin                  pin the current selection
 ///   --stress               time rendering a 10,000-line synthetic file
 ///   --shot <png>           after everything else, render the window to this PNG
 ///
@@ -45,11 +48,44 @@ enum DebugHooks {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            if let label = value(after: "--golden"), let column = controller.columns.first(where: { $0.label == label }) {
+                let start = Date()
+                controller.setGolden(column.id)
+                var rendered = 0
+                for other in controller.visibleColumns {
+                    for row in controller.allRows { _ = controller.displayLines(column: other, path: row.path); rendered += 1 }
+                    _ = controller.goldenSummary(for: other)
+                }
+                log("golden \(label) → \(rendered) column-files rendered in \(Int(Date().timeIntervalSince(start) * 1000)) ms; summaries: " +
+                    controller.visibleColumns.compactMap { c in controller.goldenSummary(for: c).map { "\(c.label)=\($0.files)f/\($0.lines)l" } }.joined(separator: " "))
+            }
+            if let query = value(after: "--search") {
+                controller.searchQuery = query
+                controller.runSearch()
+                let total = controller.searchResults.reduce(0) { $0 + $1.count }
+                log("search \"\(query)\" → \(total) hits in \(controller.searchResults.count) files; per column: " +
+                    Dictionary(grouping: controller.searchResults.flatMap(\.columns), by: \.label).map { "\($0.key)=\($0.value.reduce(0) { $0 + $1.hits.count })" }.sorted().joined(separator: " "))
+                for group in controller.searchResults.prefix(3) {
+                    log("  \(group.path): " + group.columns.map { c in "\(c.label) " + c.hits.prefix(3).map { "L\($0.displayIndex + 1)" }.joined(separator: ",") }.joined(separator: " | "))
+                }
+            }
             if let spec = value(after: "--select"), let (id, from, to) = parse(spec, controller) {
                 controller.scrollSync.select(id, lines: (from - 1)..<to)
                 controller.focusedColumnID = id
                 controller.copyReference()
                 log("select \(spec) → selection \(controller.selections[id].map { "\($0)" } ?? "none") reference \(controller.currentReference()?.description ?? "none") pasteboard \(NSPasteboard.general.string(forType: .string) ?? "")")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    for column in controller.visibleColumns where column.id != id {
+                        if let anchor = controller.anchor(for: column.id) {
+                            let lines = controller.displayLines(column: column, path: controller.selectedPath ?? "")
+                            let first = anchor.lines.lowerBound < lines.count ? lines[anchor.lines.lowerBound].text.trimmingCharacters(in: .whitespaces).prefix(50) : ""
+                            log("anchor in \(column.label): \(anchor.status) \(String(format: "%.2f", anchor.confidence)) lines \(anchor.lines.lowerBound + 1)..<\(anchor.lines.upperBound + 1) via \(anchor.viaIdentifier ?? "position") nearest \(controller.nearestHunkReference(anchor, path: controller.selectedPath ?? "") ?? "-") : \(first)")
+                        } else {
+                            log("anchor in \(column.label): none")
+                        }
+                    }
+                    if args.contains("--pin") { controller.pinSelection(); log("pins: \(controller.pins.map(\.reference))") }
+                }
             }
             if let spec = value(after: "--scroll"), let (id, line, _) = parse(spec, controller) {
                 controller.scrollSync.scroll(id, toTopLine: line - 1)

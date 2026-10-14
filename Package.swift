@@ -10,7 +10,7 @@ import PackageDescription
 //   BaseLoader       → Foundation only
 //   ApplyEngine      → PatchModel, BaseLoader
 //   DiffEngine       → nothing
-//   AlignmentEngine  → ApplyEngine, DiffEngine            (Phase 3, not yet landed)
+//   AlignmentEngine  → ApplyEngine, DiffEngine
 //   SessionModel     → PatchModel                         (Phase 4, not yet landed)
 // Add a target only when its first real code lands with tests.
 let package = Package(
@@ -21,6 +21,7 @@ let package = Package(
         .library(name: "BaseLoader", targets: ["BaseLoader"]),
         .library(name: "ApplyEngine", targets: ["ApplyEngine"]),
         .library(name: "DiffEngine", targets: ["DiffEngine"]),
+        .library(name: "AlignmentEngine", targets: ["AlignmentEngine"]),
         .executable(name: "patchadam", targets: ["patchadam"]),
     ],
     targets: [
@@ -38,14 +39,19 @@ let package = Package(
         // Myers + patience line diff, Myers token diff. No imports.
         .target(name: "DiffEngine"),
 
+        // Locate a region of one column in another: anchor with status
+        // and confidence (FR-13…15); golden rendering (FR-21).
+        .target(name: "AlignmentEngine", dependencies: ["ApplyEngine", "DiffEngine"]),
+
         // Command-line harness: exercises the engines on fixture patches
         // without the app. `swift run patchadam parse <patch>...`
-        .executableTarget(name: "patchadam", dependencies: ["PatchModel", "BaseLoader", "ApplyEngine", "DiffEngine"]),
+        .executableTarget(name: "patchadam", dependencies: ["PatchModel", "BaseLoader", "ApplyEngine", "DiffEngine", "AlignmentEngine"]),
 
         .testTarget(name: "PatchModelTests", dependencies: ["PatchModel"]),
         .testTarget(name: "BaseLoaderTests", dependencies: ["BaseLoader"]),
         .testTarget(name: "ApplyEngineTests", dependencies: ["ApplyEngine", "PatchModel", "BaseLoader"]),
         .testTarget(name: "DiffEngineTests", dependencies: ["DiffEngine", "ApplyEngine", "PatchModel", "BaseLoader"]),
+        .testTarget(name: "AlignmentEngineTests", dependencies: ["AlignmentEngine", "ApplyEngine", "DiffEngine", "PatchModel", "BaseLoader"]),
     ],
     swiftLanguageModes: [.v6]
 )

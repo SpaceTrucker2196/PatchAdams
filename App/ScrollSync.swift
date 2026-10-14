@@ -1,5 +1,6 @@
 import AppKit
 import ApplyEngine
+import AlignmentEngine
 
 /// Scroll lock (FR-10): when one column scrolls, the others follow to
 /// the aligned position — by anchor, not raw line number. In Phase 2
@@ -20,8 +21,9 @@ final class ScrollSync {
     private var syncing = false
     /// `isEnabled` is set by the controller; the sync reads it on every scroll.
     var isEnabled: () -> Bool = { true }
-    /// Column id → line map for the selected file, supplied by the controller.
-    var lineMap: (UUID) -> LineMap? = { _ in nil }
+    /// Which number is the shared frame for a column: `postLine` for the
+    /// golden column, `baseLine` for the rest. Set by the controller.
+    var usesPostLineFrame: (UUID) -> Bool = { _ in false }
 
     func register(_ id: UUID, scrollView: NSScrollView, textView: NSTextView, coordinator: CodeTextView.Coordinator) {
         entries[id] = Entry(scrollView: scrollView, textView: textView, coordinator: coordinator)
@@ -73,7 +75,7 @@ final class ScrollSync {
     private func didScroll(_ source: UUID) {
         guard !syncing, isEnabled(), entries.count > 1 else { return }
         guard let top = topLine(of: source), let sourceLines = entries[source]?.coordinator?.lines, top < sourceLines.count else { return }
-        guard let anchor = sourceLines.anchorBase(at: top) else { return }
+        guard let anchor = sourceLines.anchorReference(at: top, key: usesPostLineFrame(source) ? \.postLine : \.baseLine) else { return }
         guard let sourceTextView = entries[source]?.textView else { return }
         // Keep the fractional offset inside the top line so following is smooth.
         let sourceLineRect = lineRect(entries[source]!, line: top)
@@ -83,7 +85,7 @@ final class ScrollSync {
         defer { syncing = false }
         for (id, entry) in entries where id != source {
             guard let coordinator = entry.coordinator, let scrollView = entry.scrollView else { continue }
-            guard let target = coordinator.lines.index(atOrAfterBase: anchor) else { continue }
+            guard let target = coordinator.lines.index(atOrAfterReference: anchor, key: usesPostLineFrame(id) ? \.postLine : \.baseLine) else { continue }
             guard let rect = lineRect(entry, line: target) else { continue }
             let clip = scrollView.contentView
             let maxY = max(0, (scrollView.documentView?.frame.height ?? 0) - clip.bounds.height)

@@ -2,6 +2,7 @@ import SwiftUI
 import PatchModel
 import BaseLoader
 import ApplyEngine
+import AlignmentEngine
 
 // The one owner of session state (spec "Technical architecture"). The
 // shell never calls an engine: everything heavy runs on `Engines`, an
@@ -70,6 +71,57 @@ actor Engines {
     func apply(_ patch: Patch, to base: any FileProvider) -> AppliedPatch {
         ApplyEngine.apply(patch, to: base)
     }
+
+    /// Locate `region` of `source` in every target (FR-13). `postKeyed`
+    /// marks the golden column, whose frame is its own post text.
+    func locate(_ region: Range<Int>, source: [DisplayLine], sourcePostKeyed: Bool,
+                targets: [(id: UUID, lines: [DisplayLine], postKeyed: Bool, hunks: [HunkPlacement])]) -> [UUID: RegionAnchor] {
+        var out: [UUID: RegionAnchor] = [:]
+        for target in targets {
+            out[target.id] = AlignmentEngine.locate(region, in: source, sourceKey: sourcePostKeyed ? \.postLine : \.baseLine,
+                                                    target: target.lines, targetKey: target.postKeyed ? \.postLine : \.baseLine,
+                                                    targetHunks: target.hunks)
+        }
+        return out
+    }
+}
+
+/// A region the reviewer selected (spec "Region"): display lines in one column.
+struct SelectionRegion: Hashable {
+    var columnID: UUID
+    var path: String
+    var lines: Range<Int>
+}
+
+/// A pinned selection (FR-17).
+struct Pin: Identifiable, Hashable {
+    let id: UUID
+    var region: SelectionRegion
+    var label: String
+    var reference: String
+    var snippet: String
+}
+
+struct SearchHit: Identifiable, Hashable {
+    var id: String { "\(columnID)|\(displayIndex)" }
+    var columnID: UUID
+    var displayIndex: Int
+    var text: String
+    var reference: String
+}
+
+struct SearchColumnHits: Identifiable, Hashable {
+    var id: UUID { columnID }
+    var columnID: UUID
+    var label: String
+    var hits: [SearchHit]
+}
+
+struct SearchGroup: Identifiable, Hashable {
+    var id: String { path }
+    var path: String
+    var columns: [SearchColumnHits]
+    var count: Int { columns.reduce(0) { $0 + $1.hits.count } }
 }
 
 @MainActor @Observable
@@ -89,11 +141,27 @@ final class SessionController {
     var scrollRequests: [UUID: ScrollRequest] = [:]
     var errorMessage: String?
     var statusMessage: String?
+    /// The golden column (FR-20), or `nil` for base rendering.
+    var goldenID: UUID?
+    /// The region being compared and where it landed in every other column.
+    var comparedRegion: SelectionRegion?
+    var anchors: [UUID: RegionAnchor] = [:]
+    var pins: [Pin] = []
+    var searchQuery = ""
+    var searchResults: [SearchGroup] = []
+    var showComparison = true
+    var showPins = false
+    var showSearch = false
+    /// Columns whose text view selection is non-empty (a drag, not a caret).
+    var selectionIsEmpty: [UUID: Bool] = [:]
 
     @ObservationIgnored let engines = Engines()
     @ObservationIgnored let scrollSync = ScrollSync()
     @ObservationIgnored private var scrollGeneration = 0
     @ObservationIgnored private var displayCache: [String: [DisplayLine]] = [:]
+    @ObservationIgnored private var goldenCache: [String: GoldenRenderer.Rendering] = [:]
+    @ObservationIgnored var locateTask: Task<Void, Never>?
+    @ObservationIgnored var locateGeneration = 0
 
     /// Columns in display order, hidden ones left out.
     var visibleColumns: [PatchColumn] { columns.filter { !$0.isHidden } }
@@ -164,7 +232,12 @@ final class SessionController {
 
     func removeColumn(_ id: UUID) {
         columns.removeAll { $0.id == id }
-        displayCache = displayCache.filter { !$0.key.hasPrefix(id.uuidString) }
+        displayCache = [:]
+        goldenCache = [:]
+        if goldenID == id { goldenID = nil }
+        pins.removeAll { $0.region.columnID == id }
+        anchors = [:]
+        comparedRegion = nil
     }
 
     func newSession() {
@@ -173,6 +246,12 @@ final class SessionController {
         selectedPath = nil
         selections = [:]
         displayCache = [:]
+        goldenCache = [:]
+        goldenID = nil
+        pins = []
+        anchors = [:]
+        comparedRegion = nil
+        searchResults = []
         requestText = ""
         showRequestPanel = true
     }
@@ -189,6 +268,7 @@ final class SessionController {
 
     func reapplyAll() {
         displayCache = [:]
+        goldenCache = [:]
         for column in columns { apply(columnID: column.id) }
     }
 
@@ -200,7 +280,8 @@ final class SessionController {
             let applied = await engines.apply(patch, to: base)
             guard let i = columns.firstIndex(where: { $0.id == columnID }) else { return }
             columns[i].applied = applied
-            displayCache = displayCache.filter { !$0.key.hasPrefix(columnID.uuidString) }
+            displayCache = [:]
+            goldenCache = [:]
             let report = applied.report
             if report.failed > 0 {
                 statusMessage = String(localized: "\(columns[i].label) (\(columns[i].sourceName)): \(report.failed) file(s) failed to apply")
@@ -211,21 +292,34 @@ final class SessionController {
     // MARK: - File tree (FR-8)
 
     var fileRows: [FileRow] {
+        let filter = filterText.lowercased()
+        return allRows.filter { row in
+            (!testsOnly || row.isTest) && (filter.isEmpty || row.path.lowercased().contains(filter))
+        }
+    }
+
+    /// Every touched file, unfiltered. In golden mode a non-golden
+    /// column's chip says whether its file differs from golden (FR-22).
+    var allRows: [FileRow] {
         var paths: [String: [UUID: FileChip]] = [:]
         for column in columns {
             for file in column.patch.files {
                 paths[file.path, default: [:]][column.id] = column.chip(for: file.path)
             }
         }
-        let filter = filterText.lowercased()
-        return paths.keys.sorted().compactMap { path in
+        let golden = goldenID.flatMap { id in columns.first { $0.id == id } }
+        return paths.keys.sorted().map { path in
             let change = columns.lazy.compactMap { $0.patch.files.first { $0.path == path } }.first
-            let isTest = change?.isTest ?? false
-            if testsOnly && !isTest { return nil }
-            if !filter.isEmpty && !path.lowercased().contains(filter) { return nil }
             var chips = paths[path]!
             for column in columns where chips[column.id] == nil { chips[column.id] = .unchanged }
-            return FileRow(path: path, chips: chips, isTest: isTest)
+            if let golden {
+                for column in columns where column.id != golden.id && chips[column.id] != .failed && column.applied != nil {
+                    if let rendering = goldenRendering(golden: golden, column: column, path: path) {
+                        chips[column.id] = rendering.isIdentical ? .unchanged : .changed
+                    }
+                }
+            }
+            return FileRow(path: path, chips: chips, isTest: change?.isTest ?? false)
         }
     }
 
@@ -249,18 +343,62 @@ final class SessionController {
     /// Above `reducedModeThreshold` lines only hunks and three lines of
     /// context are shown (spec "Large or odd patches").
     func displayLines(column: PatchColumn, path: String) -> [DisplayLine] {
-        let key = "\(column.id.uuidString)|\(path)|\(showRemovedLines)|\(column.applied == nil)"
+        let golden = goldenID.flatMap { id in id == column.id ? nil : columns.first { $0.id == id } }
+        let key = "\(column.id.uuidString)|\(path)|\(showRemovedLines)|\(column.applied == nil)|\(golden?.id.uuidString ?? "base")"
         if let cached = displayCache[key] { return cached }
         guard let file = renderedFile(column: column, path: path) else { return [] }
         var lines: [DisplayLine]
         if file.status.isFailure {
             lines = Self.rawHunkLines(file.change)
+        } else if let golden, let rendering = goldenRendering(golden: golden, column: column, path: path, file: file) {
+            lines = rendering.lines
+            if lines.count > Self.reducedModeThreshold { lines = Self.reduced(lines) }
         } else {
             lines = file.displayLines(includeRemoved: showRemovedLines)
             if lines.count > Self.reducedModeThreshold { lines = Self.reduced(lines) }
         }
         displayCache[key] = lines
         return lines
+    }
+
+    /// `column` against the golden column's post text (FR-21), cached
+    /// per (file, column, golden) and dropped when the golden changes.
+    func goldenRendering(golden: PatchColumn, column: PatchColumn, path: String, file: AppliedFile? = nil) -> GoldenRenderer.Rendering? {
+        let key = "\(golden.id.uuidString)|\(column.id.uuidString)|\(path)|\(showRemovedLines)"
+        if let cached = goldenCache[key] { return cached }
+        guard let goldenFile = renderedFile(column: golden, path: path), !goldenFile.status.isFailure,
+              let ownFile = file ?? renderedFile(column: column, path: path), !ownFile.status.isFailure else { return nil }
+        let rendering = GoldenRenderer.render(reference: goldenFile.postText ?? "", text: ownFile.postText ?? "", includeRemoved: showRemovedLines)
+        goldenCache[key] = rendering
+        return rendering
+    }
+
+    /// Which line number is the shared frame for `column`: its own post
+    /// line when it is golden, otherwise `baseLine` (base, or golden post).
+    func usesPostLineFrame(_ columnID: UUID) -> Bool { goldenID == columnID }
+
+    func setGolden(_ id: UUID?) {
+        goldenID = (goldenID == id) ? nil : id
+        goldenCache = [:]
+        displayCache = [:]
+        comparedRegion = nil
+        anchors = [:]
+        if let goldenID, let column = columns.first(where: { $0.id == goldenID }) {
+            statusMessage = String(localized: "Golden: \(column.label) (\(column.sourceName))")
+        } else {
+            statusMessage = String(localized: "Golden cleared; columns render against the base.")
+        }
+    }
+
+    /// Files and lines that differ from the golden column (FR-24).
+    func goldenSummary(for column: PatchColumn) -> (files: Int, lines: Int)? {
+        guard let goldenID, goldenID != column.id, let golden = columns.first(where: { $0.id == goldenID }), column.applied != nil else { return nil }
+        var files = 0, lines = 0
+        for row in allRows {
+            guard let rendering = goldenRendering(golden: golden, column: column, path: row.path) else { continue }
+            if !rendering.isIdentical { files += 1; lines += rendering.insertedCount + rendering.deletedCount }
+        }
+        return (files, lines)
     }
 
     /// A failed file stays visible with its raw hunks (FR-3).
@@ -351,9 +489,13 @@ final class SessionController {
         }
         let target = forward ? starts.first { $0 > current } : starts.last { $0 < current }
         guard let target else { return }
-        scrollGeneration += 1
-        scrollRequests[column.id] = ScrollRequest(displayLine: target, generation: scrollGeneration)
+        bumpScroll(columnID: column.id, displayLine: target)
         selections[column.id] = target..<target + 1
+    }
+
+    func bumpScroll(columnID: UUID, displayLine: Int) {
+        scrollGeneration += 1
+        scrollRequests[columnID] = ScrollRequest(displayLine: displayLine, generation: scrollGeneration)
     }
 
     func moveColumn(_ id: UUID, by delta: Int) {

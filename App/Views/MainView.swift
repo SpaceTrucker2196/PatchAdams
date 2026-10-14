@@ -38,8 +38,21 @@ struct MainView: View {
             HSplitView {
                 FileTreeView(controller: controller)
                     .frame(minWidth: 180, idealWidth: 240, maxWidth: 400)
-                columns
-                    .frame(minWidth: 400, maxWidth: .infinity)
+                VStack(spacing: 0) {
+                    columns
+                    if controller.showSearch {
+                        Divider()
+                        SearchPanel(controller: controller)
+                    } else if controller.showComparison {
+                        Divider()
+                        ComparisonPanel(controller: controller)
+                    }
+                }
+                .frame(minWidth: 400, maxWidth: .infinity)
+                if controller.showPins {
+                    PinsSidebar(controller: controller)
+                        .frame(minWidth: 180, idealWidth: 220, maxWidth: 320)
+                }
             }
             Divider()
             statusBar
@@ -64,6 +77,14 @@ struct MainView: View {
             if let path = controller.selectedPath {
                 Text(path).font(.caption).lineLimit(1).truncationMode(.middle)
             }
+            if controller.goldenID != nil {
+                ForEach(controller.visibleColumns) { column in
+                    if let summary = controller.goldenSummary(for: column) {
+                        Text(String(localized: "\(column.label): \(summary.files) files, \(summary.lines) lines differ"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
             Spacer()
             if let message = controller.statusMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -79,7 +100,31 @@ struct MainView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .principal) {
+            if controller.hasSession {
+                Picker(String(localized: "Golden"), selection: Binding(get: { controller.goldenID }, set: { controller.setGolden($0) })) {
+                    Text(String(localized: "None")).tag(UUID?.none)
+                    ForEach(controller.columns) { column in
+                        Text("★ \(column.label)").tag(UUID?.some(column.id))
+                    }
+                }
+                .pickerStyle(.segmented)
+                .help(String(localized: "Golden patch: every other column renders against it (⇧⌘1–4)"))
+            }
+        }
         ToolbarItemGroup(placement: .primaryAction) {
+            Toggle(isOn: $controller.showSearch) {
+                Label(String(localized: "Search"), systemImage: "magnifyingglass")
+            }
+            .help(String(localized: "Search all columns (⌘F)"))
+            Toggle(isOn: $controller.showComparison) {
+                Label(String(localized: "Comparison"), systemImage: "rectangle.split.2x1")
+            }
+            .help(String(localized: "Show the comparison panel"))
+            Toggle(isOn: $controller.showPins) {
+                Label(String(localized: "Pins"), systemImage: "pin")
+            }
+            .help(String(localized: "Pinned selections (⌘P pins)"))
             Toggle(isOn: $controller.showRequestPanel) {
                 Label(String(localized: "Request"), systemImage: "text.quote")
             }

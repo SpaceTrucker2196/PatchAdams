@@ -4,6 +4,40 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — M3 (#3): comparison
+
+**Done.** `AlignmentEngine` target (ApplyEngine + DiffEngine, no UI):
+`AlignmentEngine.locate` runs the spec's alignment steps over display
+lines in a shared reference frame (base lines, or the golden column's
+post lines) — declared identifier first (step 5 outranks position),
+then the same reference span, then the best token-similarity window
+anywhere in the file (`moved` at 0.6 or above), else `absent` at the
+place the region would fall with the nearest hunk. `GoldenRenderer`
+diffs a column's post text against the golden column's. The engine's
+anchor type is `RegionAnchor` (the spec's "Anchor" — SwiftUI already
+owns that name; the app build was red on the ambiguity at the start of
+this pass). App: status badges per column, absent notice with a
+nearest-hunk jump, word-level comparison panel, pins panel (⌘P),
+golden picker (⇧⌘1–4) with a per-column differs summary and a cache
+keyed (file, column, golden), cross-column search (⌘F) grouped by file
+then column. 14 engine tests cover the rules and all four M3 gates on
+the fixtures; the gates were also driven on screen through
+`DebugHooks` (`--golden`, `--search`, `--pin`, anchors logged after
+`--select`) and the numbers are in ROADMAP.md.
+
+**Next.** M4 (#4): `SessionModel` — findings with categories, ranking,
+Markdown/JSON export, session save, blind mode. Manual anchor
+correction (FR-18) is not in this pass: its `ManualAnchor` record is
+part of `SessionModel` (AGENTS.md), so the drag lands with M4.
+
+**Owner spot-check (autonomy contract, "decides and flags").** UI
+wording and shortcuts: badge text `exact / modified / moved / absent`
+with a percent, the absent notice "No matching change in X. Nearest
+hunk: file Lstart:Lend", ⌘F search, ⌘P pin, ⇧⌘1–4 golden.
+
+**Open, for the owner.** Unchanged: fixture licensing, spec open
+questions.
+
 ## 2026-10-14 — M2 (#2): the viewer
 
 **Done.** The app is now a product to look at. `SessionController`

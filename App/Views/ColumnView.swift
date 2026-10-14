@@ -1,5 +1,6 @@
 import SwiftUI
 import ApplyEngine
+import AlignmentEngine
 
 /// One patch column: header with label *and* patch file name (FR-4),
 /// then the code view for the selected file.
@@ -10,6 +11,8 @@ struct ColumnView: View {
     private var path: String? { controller.selectedPath }
     private var file: AppliedFile? { path.flatMap { controller.renderedFile(column: column, path: $0) } }
     private var isFocused: Bool { controller.focusedColumnID == column.id }
+    private var isGolden: Bool { controller.goldenID == column.id }
+    private var anchor: RegionAnchor? { controller.anchor(for: column.id) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,12 +30,16 @@ struct ColumnView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text(column.label)
+            Text(column.label + (isGolden ? " ★" : ""))
                 .font(.system(.headline, design: .rounded)).bold()
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .background(Capsule().fill(labelColor))
                 .foregroundStyle(.white)
                 .fixedSize()
+                .help(isGolden ? String(localized: "Golden: other columns render against this one") : "")
+            if let anchor {
+                anchorBadge(anchor)
+            }
             Text(column.sourceName)
                 .font(.callout)
                 .lineLimit(1)
@@ -46,6 +53,8 @@ struct ColumnView: View {
                 statusDot
             }
             Menu {
+                Button(isGolden ? String(localized: "Clear Golden") : String(localized: "Set Golden")) { controller.setGolden(column.id) }
+                Divider()
                 Button(column.isHidden ? String(localized: "Show") : String(localized: "Hide")) { controller.toggleHidden(column.id) }
                 Button(String(localized: "Move Left")) { controller.moveColumn(column.id, by: -1) }
                 Button(String(localized: "Move Right")) { controller.moveColumn(column.id, by: 1) }
@@ -62,6 +71,20 @@ struct ColumnView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    /// Status badge of the located region (FR-14): colour and word.
+    private func anchorBadge(_ anchor: RegionAnchor) -> some View {
+        let text = anchor.status == .absent ? anchor.status.rawValue : "\(anchor.status.rawValue) \(Int((anchor.confidence * 100).rounded()))%"
+        return Text(text)
+            .font(.caption.bold())
+            .lineLimit(1).fixedSize()
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Color(nsColor: CodeStyle.anchorColor(anchor.status))))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(style: StrokeStyle(lineWidth: anchor.status == .absent ? 1.5 : 0, dash: [3])).foregroundStyle(.red))
+            .help(anchor.viaIdentifier.map { String(localized: "Matched by identifier \($0)") } ?? String(localized: "Matched by position"))
+            .onTapGesture { controller.makeAnchorTheSelection(columnID: column.id) }
+            .accessibilityLabel(text)
     }
 
     private var labelColor: Color {
@@ -105,6 +128,38 @@ struct ColumnView: View {
         }
     }
 
+    /// "No matching change in B. Nearest hunk: main.rs L94:L101." (FR-15)
+    private func absentNotice(_ anchor: RegionAnchor, path: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "xmark.rectangle").foregroundStyle(.red)
+            Text(String(localized: "No matching change in \(column.label)."))
+            if let reference = controller.nearestHunkReference(anchor, path: path) {
+                Button {
+                    controller.jumpToNearestHunk(columnID: column.id)
+                } label: {
+                    Text(String(localized: "Nearest hunk: \(reference)"))
+                }
+                .buttonStyle(.link)
+            }
+            Spacer()
+        }
+        .font(.caption)
+        .padding(6)
+        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4])).foregroundStyle(.red))
+        .padding(4)
+    }
+
+    private func highlights(path: String) -> [LineHighlight] {
+        var out: [LineHighlight] = []
+        if let anchor {
+            out.append(LineHighlight(lines: anchor.lines, kind: anchor.status == .absent ? .absentMarker : .anchor(anchor.status)))
+        }
+        for pin in controller.pins(in: column.id, path: path) {
+            out.append(LineHighlight(lines: pin.region.lines, kind: .pin))
+        }
+        return out
+    }
+
     private func chipColor(_ status: ApplyStatus?) -> Color {
         switch status {
         case .clean?: return .green
@@ -138,9 +193,13 @@ struct ColumnView: View {
                     Text(String(localized: "Reduced mode: hunks only (\(lines.count) lines)."))
                         .font(.caption).foregroundStyle(.secondary).padding(4)
                 }
+                if let anchor, anchor.status == .absent {
+                    absentNotice(anchor, path: path)
+                }
                 CodeTextView(columnID: column.id, lines: lines,
-                             contentKey: "\(column.id)|\(path)|\(controller.showRemovedLines)|\(lines.count)|\(file?.status.label ?? "")",
+                             contentKey: "\(column.id)|\(path)|\(controller.showRemovedLines)|\(lines.count)|\(file?.status.label ?? "")|\(controller.goldenID?.uuidString ?? "")",
                              scrollRequest: controller.scrollRequests[column.id],
+                             highlights: highlights(path: path),
                              controller: controller)
             }
         } else if path == nil {

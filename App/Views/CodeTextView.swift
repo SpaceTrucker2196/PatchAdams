@@ -1,6 +1,15 @@
 import SwiftUI
 import AppKit
 import ApplyEngine
+import AlignmentEngine
+
+/// A run of display lines to colour: a located region, a pin, or the
+/// spot an absent region would occupy.
+struct LineHighlight: Hashable {
+    enum Kind: Hashable { case anchor(AnchorStatus), pin, absentMarker }
+    var lines: Range<Int>
+    var kind: Kind
+}
 
 // One column's code view (FR-9): an AppKit NSTextView (TextKit 1, so
 // the gutter can ask the layout manager about line fragments) inside
@@ -13,6 +22,7 @@ struct CodeTextView: NSViewRepresentable {
     /// Changes whenever `lines` should be re-set on the text storage.
     let contentKey: String
     let scrollRequest: ScrollRequest?
+    let highlights: [LineHighlight]
     let controller: SessionController
 
     func makeCoordinator() -> Coordinator { Coordinator(columnID: columnID, controller: controller) }
@@ -76,6 +86,10 @@ struct CodeTextView: NSViewRepresentable {
             coordinator.lastScrollRequest = scrollRequest
             coordinator.scroll(toDisplayLine: scrollRequest.displayLine, select: true)
         }
+        if coordinator.highlights != highlights {
+            coordinator.highlights = highlights
+            coordinator.applyHighlights()
+        }
     }
 
     /// Fill whatever SwiftUI offers; never report the document's size.
@@ -95,6 +109,7 @@ struct CodeTextView: NSViewRepresentable {
         weak var gutter: LineGutterView?
         var contentKey = ""
         var lastScrollRequest: ScrollRequest?
+        var highlights: [LineHighlight] = []
         /// Character offset where each display line starts.
         private(set) var lineStarts: [Int] = []
         private(set) var lines: [DisplayLine] = []
@@ -115,6 +130,37 @@ struct CodeTextView: NSViewRepresentable {
             storage.endEditing()
             gutter?.lineStarts = starts
             gutter?.lines = newLines
+            applyHighlights()
+        }
+
+        /// Temporary attributes over the located, pinned and absent lines.
+        func applyHighlights() {
+            guard let textView, let layout = textView.layoutManager else { return }
+            let whole = NSRange(location: 0, length: textView.string.utf16.count)
+            layout.removeTemporaryAttribute(.backgroundColor, forCharacterRange: whole)
+            layout.removeTemporaryAttribute(.underlineStyle, forCharacterRange: whole)
+            layout.removeTemporaryAttribute(.underlineColor, forCharacterRange: whole)
+            for highlight in highlights {
+                let lo = max(0, highlight.lines.lowerBound), hi = min(lineStarts.count, highlight.lines.upperBound)
+                switch highlight.kind {
+                case .anchor(let status):
+                    guard lo < hi else { continue }
+                    let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
+                    layout.addTemporaryAttribute(.backgroundColor, value: CodeStyle.anchorColor(status), forCharacterRange: range)
+                case .pin:
+                    guard lo < hi else { continue }
+                    let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
+                    layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: range)
+                    layout.addTemporaryAttribute(.underlineColor, value: NSColor.systemYellow, forCharacterRange: range)
+                case .absentMarker:
+                    // A dashed red line at the spot the region would occupy (FR-15).
+                    let index = min(lo, lineStarts.count - 1)
+                    guard index >= 0 else { continue }
+                    let range = characterRange(ofLine: index)
+                    layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.patternDash.rawValue | NSUnderlineStyle.thick.rawValue, forCharacterRange: range)
+                    layout.addTemporaryAttribute(.underlineColor, value: NSColor.systemRed, forCharacterRange: range)
+                }
+            }
         }
 
         /// Display line index containing character `offset`.
@@ -164,8 +210,7 @@ struct CodeTextView: NSViewRepresentable {
             // A selection ending exactly at a line start does not include that line.
             let endOffset = range.length > 0 ? range.location + range.length - 1 : range.location
             let last = lineIndex(forCharacter: endOffset)
-            controller.selections[columnID] = first..<(max(first, last) + 1)
-            controller.focusedColumnID = columnID
+            controller.setSelection(columnID, lines: first..<(max(first, last) + 1), isEmpty: range.length == 0)
         }
     }
 }
@@ -190,6 +235,17 @@ enum CodeStyle {
     static var addedBackground: NSColor { NSColor.systemGreen.withAlphaComponent(0.18) }
     static var removedBackground: NSColor { NSColor.systemRed.withAlphaComponent(0.16) }
     static var elidedForeground: NSColor { .tertiaryLabelColor }
+
+    /// Located-region colours (FR-14): green exact, amber modified,
+    /// blue moved. Every status is also a word in the header badge.
+    static func anchorColor(_ status: AnchorStatus) -> NSColor {
+        switch status {
+        case .exact: return NSColor.systemGreen.withAlphaComponent(0.45)
+        case .modified: return NSColor.systemOrange.withAlphaComponent(0.45)
+        case .moved: return NSColor.systemBlue.withAlphaComponent(0.4)
+        case .absent: return NSColor.systemRed.withAlphaComponent(0.3)
+        }
+    }
 
     /// The attributed text and each line's start offset (UTF-16).
     static func render(_ lines: [DisplayLine]) -> (NSAttributedString, [Int]) {

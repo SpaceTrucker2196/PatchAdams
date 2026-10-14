@@ -33,18 +33,23 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
     columns with different line maps, both at base line 2927.)
   - [x] Each column header shows its patch file name; tab-mapping
     confusion is impossible.
-- [ ] **M3** (L) — Phase 3, comparison: selection alignment, status
+- [x] **M3** (L) — Phase 3, comparison: selection alignment, status
   badges, absent notices with nearest-hunk links, comparison panel,
-  golden patch mode, cross-column search.
-  - [ ] Select the `strip_prefix("glow-")` block in the lantern patch
+  golden patch mode, cross-column search. 2026-10-14.
+  - [x] Select the `strip_prefix("glow-")` block in the lantern patch
     that has it; marked `absent` in the other two with a link to their
-    nearest hunk in `main.rs`.
-  - [ ] Select `fn glow_schema` in any lantern column; located as
-    `modified` or `exact` in the others.
-  - [ ] Set each of four columns as golden in turn; every switch
-    renders in under 1 second.
-  - [ ] Search `tempFor(k)` across the four Go patches; grouped
+    nearest hunk in `main.rs`. (`--select C:854-856` on lantern-1…11:
+    A absent, nearest `main.rs L812:L871`; B absent, nearest
+    `main.rs L785:L844`.)
+  - [x] Select `fn glow_schema` in any lantern column; located as
+    `modified` or `exact` in the others. (`--select B:106-113`: A and
+    C `modified` 0.87 via identifier `glow_schema`.)
+  - [x] Set each of four columns as golden in turn; every switch
+    renders in under 1 second. (`--golden A|B|C|D` on kettle-1…18:
+    64 column-files in 49–59 ms each.)
+  - [x] Search `tempFor(k)` across the four Go patches; grouped
     results with 60 or more hits in the patch that has them.
+    (old-fixture-8, 15, 16, 17: 63 hits in 13 files, all in column A.)
 - [ ] **M4** (L) — Phase 4, review workflow: findings with categories
   and severity, ranking with ties, Markdown and JSON export, session
   save/load, blind mode, manual anchor correction.

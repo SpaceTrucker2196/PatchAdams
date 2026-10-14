@@ -40,7 +40,7 @@ tools/                   audit-workflows.sh, billing/ledger.py
 ```
 
 Planned packages, added as their first code lands (docs/spec.md
-"Packages"): `AlignmentEngine` (Phase 3), `SessionModel` (Phase 4).
+"Packages"): `SessionModel` (Phase 4). `AlignmentEngine` landed with M3.
 Dependency rules are in `Package.swift`'s header comment and
 `AGENTS.md`.
 
@@ -86,6 +86,11 @@ for a display-line range and logs it; `--scroll` scrolls one column and
 logs where every column landed; `--stress` times a 10,000-line render;
 `--shot` self-renders the window to a PNG (a `screencapture -l` of a
 window on a secondary display can be stale — the PNG is the truth).
+M3 flags: `--golden B` sets a column golden and logs the re-render
+time; `--search "text"` logs hits per file and column with the first
+display lines; `--pin` pins the `--select` region; after `--select`
+every other column's anchor (status, confidence, lines, nearest hunk)
+is logged.
 Every step logs `hook: …` to stderr.
 
 ## Code visualization (cygnus)
