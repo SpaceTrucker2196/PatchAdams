@@ -4,6 +4,44 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — M4 (#4): review workflow
+
+**Done.** `SessionModel` target (PatchModel only, no UI): `Session`,
+`Finding` (title, description, category, severity, generated
+reference, "does the request ask for this", not-flagged, parked
+correctness note, anchors with confidence), `Ranking` (ties allowed),
+`SessionPin`, `ManualAnchor`, `BlindMode` (seeded SplitMix64 shuffle,
+frozen by test), `BasePointer`; `SessionPackage` writes and reads the
+`.patchadam` directory (`session.json` + `patches/<label>-<name>`);
+`MarkdownExport` (D5) and `JSONExport`. App: findings sidebar with
+filters by patch, file, category, severity; ⌘N finding sheet prefilled
+from the selection; gutter markers by severity; `}` `{` walk findings;
+"Same issue in C?" templates (FR-29); ranking block with rationale;
+Copy Markdown, Export Markdown (⌘E), Export JSON; Save / Save As /
+Open Session (`.patchadam` is a registered package type); blind mode
+(⌘⌥B) numbers the columns in a seeded shuffle and hides file names;
+manual anchor (FR-18) as "Use selection as anchor" in a comparison
+pane, stored and winning over the engine on reload. Session timer in
+the status bar. 13 engine tests; 115 total. All four M4 gates driven
+on screen (ROADMAP.md has the numbers).
+
+**Next.** M5 (#5): DMG, notarization, Settings (font), one-time
+blind-mode prompt, `git` detection at launch.
+
+**Owner spot-check (autonomy contract, "decides and flags").**
+- FR-18 says "drag its edges". Shipped as: select the right lines in
+  the other column, then "Use selection as anchor" in its comparison
+  pane. One selection and one click; no new gesture on the text view.
+- Export writes (`Data.write` to the URL from the save panel) are read
+  as part of "session save" under AGENTS.md's FileManager rule; the
+  only other writer is `SessionPackage`.
+- Shortcuts: ⌘S / ⇧⌘S save, ⌘⌥O open session, ⌘E / ⇧⌘E / ⌘⌥E export,
+  ⌘N finding, ⌘⌥B blind, `}` `{` findings.
+
+**Open, for the owner.** The original chat write-ups behind FR-32 are
+not in the repo (D5). Unchanged: fixture licensing, spec open questions
+not yet adopted (two-base session: no).
+
 ## 2026-10-14 — M3 (#3): comparison
 
 **Done.** `AlignmentEngine` target (ApplyEngine + DiffEngine, no UI):

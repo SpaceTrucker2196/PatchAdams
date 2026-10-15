@@ -17,6 +17,7 @@ next agent will cheerfully rebuild them.
 | D2 | 2026-10-14 | Direct notarized distribution, app not sandboxed; no App Store | provisional | docs/spec.md open questions; project.yml | — |
 | D3 | 2026-10-14 | Ship the slop category list as the session default; editable per session | provisional | docs/spec.md "Category" | — |
 | D4 | 2026-10-14 | Fixture bases are synthetic, rebuilt from each patch's own hunks and checked in under `Fixtures/bases/` | adopted | issue #6; `SyntheticBaseTests` | — |
+| D5 | 2026-10-14 | The Markdown write-up shape is fixed from FR-32 (title, request collapsed, ranking table, findings by patch in rank order, not-flagged, rationale; blind mapping last) | adopted | issue #3 gate; `SessionModelTests.testMarkdownExportMatchesTheWriteUpShape` | — |
 
 `status` is one of:
 
@@ -110,3 +111,31 @@ which stays open as a later production order.
 trees (the fixtures are third-party code, PROGRESS.md "Open"), or a
 measured gap where the apply engine behaves differently on real bases
 than on synthetic ones.
+
+## D5 — the Markdown write-up shape
+
+**Decision.** `MarkdownExport` (in `SessionModel`) renders: an H1 with
+the session name; a one-line count; the request text collapsed in a
+`<details>` block; `## Ranking` as a table of rank, label and patch
+file name (rows in rank order, ties in display order, unranked last);
+`## Findings` with one H3 per patch in rank order, each finding a
+bullet `**severity · category** — title \`ref\`` followed by the
+description, the "Request asks for this" answer when it is not
+"unclear", and the note; `## Not flagged` for the deliberate passes;
+`## Rationale`. In blind mode the body shows the shuffled numbers,
+file names are withheld, and `## Mapping` comes last (FR-12). The
+test holds the exact text.
+
+**Why.** FR-32 says the export must match "the write-ups in this
+chat" so it pastes into the review form unchanged. Those write-ups
+are not in the repository — the spec was carried over without them —
+so the shape had to be fixed from the requirement's own list (mapping
+table, findings grouped by patch with `filename Lstart:Lend`
+references, rationale) plus the open question's proposed answer on the
+request text (yes, collapsed). Every reference is generated from a
+selection; the test asserts no reference in the export is absent from
+the findings.
+
+**What would change this.** The owner pasting one of the original
+write-ups into `docs/`. Then the renderer follows it and the test's
+expected text changes with it; nothing else moves.

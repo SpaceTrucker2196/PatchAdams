@@ -50,16 +50,20 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
   - [x] Search `tempFor(k)` across the four Go patches; grouped
     results with 60 or more hits in the patch that has them.
     (old-fixture-8, 15, 16, 17: 63 hits in 13 files, all in column A.)
-- [ ] **M4** (L) — Phase 4, review workflow: findings with categories
+- [x] **M4** (L) — Phase 4, review workflow: findings with categories
   and severity, ranking with ties, Markdown and JSON export, session
-  save/load, blind mode, manual anchor correction.
-  - [ ] Review the four Go patches end to end in the app and export
-    Markdown.
-  - [ ] The export reproduces the ranking write-up with no hand-typed
-    references.
-  - [ ] Close and reopen the session; findings, pins, golden choice,
-    and column order are restored.
-  - [ ] One review in blind mode; the export reveals the mapping only
-    at the end.
+  save/load, blind mode, manual anchor correction. 2026-10-14.
+  - [x] Review the four Go patches end to end in the app and export
+    Markdown. (`--demo` + four `--finding` regions + `--rank` +
+    `--export-md`: 4 findings, 24-line write-up.)
+  - [x] The export reproduces the ranking write-up with no hand-typed
+    references. (Every reference in the export is one the engine
+    generated from a region; `testEveryReferenceInTheExportComesFromAFinding`.)
+  - [x] Close and reopen the session; findings, pins, golden choice,
+    and column order are restored. (`--save` then `--open --state`:
+    4 findings, 1 pin, golden B, order A B C D, ranks and rationale.)
+  - [x] One review in blind mode; the export reveals the mapping only
+    at the end. (`--blind`: seeded order C→1 D→2 B→3 A→4; the body
+    names patches 1–4, `## Mapping` is the last section.)
 - [ ] **M5** (M) — Distribution: notarized direct download, DMG,
   Settings (font, size), first-run prompt for blind mode.

@@ -39,8 +39,8 @@ wiki/                    knowledge base, published by pages.yml
 tools/                   audit-workflows.sh, billing/ledger.py
 ```
 
-Planned packages, added as their first code lands (docs/spec.md
-"Packages"): `SessionModel` (Phase 4). `AlignmentEngine` landed with M3.
+All six packages from docs/spec.md "Packages" have landed:
+`AlignmentEngine` with M3, `SessionModel` with M4.
 Dependency rules are in `Package.swift`'s header comment and
 `AGENTS.md`.
 
@@ -90,7 +90,14 @@ M3 flags: `--golden B` sets a column golden and logs the re-render
 time; `--search "text"` logs hits per file and column with the first
 display lines; `--pin` pins the `--select` region; after `--select`
 every other column's anchor (status, confidence, lines, nearest hunk)
-is logged.
+is logged. M4 flags: `--open <pkg>` opens a `.patchadam` session;
+`--blind`; `--finding "A:10-20|title|category|severity[|notflagged]"`
+(repeatable); `--rank "A=1,B=2"`; `--rationale`; `--save <pkg>`;
+`--export-md <file>`; `--state` logs columns, golden, findings, pins,
+ranks and the blind mapping. The hooks run in stages (+3 s session
+setup, +5 s selection, +8 s persist, +11 s screenshot) because a golden
+switch re-lays the text views and would drop a selection made in the
+same instant.
 Every step logs `hook: …` to stderr.
 
 ## Code visualization (cygnus)

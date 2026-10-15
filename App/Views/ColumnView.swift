@@ -1,6 +1,7 @@
 import SwiftUI
 import ApplyEngine
 import AlignmentEngine
+import SessionModel
 
 /// One patch column: header with label *and* patch file name (FR-4),
 /// then the code view for the selected file.
@@ -30,7 +31,7 @@ struct ColumnView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text(column.label + (isGolden ? " ★" : ""))
+            Text(controller.displayLabel(column) + (isGolden ? " ★" : ""))
                 .font(.system(.headline, design: .rounded)).bold()
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .background(Capsule().fill(labelColor))
@@ -40,13 +41,13 @@ struct ColumnView: View {
             if let anchor {
                 anchorBadge(anchor)
             }
-            Text(column.sourceName)
+            Text(controller.displayName(column))
                 .font(.callout)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(minWidth: 60, alignment: .leading)
                 .layoutPriority(1)
-                .help(column.sourceName)
+                .help(controller.displayName(column))
             Spacer(minLength: 4)
             ViewThatFits(in: .horizontal) {
                 statusChip
@@ -54,6 +55,8 @@ struct ColumnView: View {
             }
             Menu {
                 Button(isGolden ? String(localized: "Clear Golden") : String(localized: "Set Golden")) { controller.setGolden(column.id) }
+                Button(String(localized: "New Finding from Selection")) { controller.focusedColumnID = column.id; controller.newFindingFromSelection() }
+                    .disabled(controller.selectionIsEmpty[column.id] != false)
                 Divider()
                 Button(column.isHidden ? String(localized: "Show") : String(localized: "Hide")) { controller.toggleHidden(column.id) }
                 Button(String(localized: "Move Left")) { controller.moveColumn(column.id, by: -1) }
@@ -89,6 +92,7 @@ struct ColumnView: View {
 
     private var labelColor: Color {
         switch column.label {
+        case _ where controller.blind.isOn: return .gray   // one colour for all in blind mode
         case "A": return .blue
         case "B": return .purple
         case "C": return .teal
@@ -132,7 +136,7 @@ struct ColumnView: View {
     private func absentNotice(_ anchor: RegionAnchor, path: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "xmark.rectangle").foregroundStyle(.red)
-            Text(String(localized: "No matching change in \(column.label)."))
+            Text(String(localized: "No matching change in \(controller.displayLabel(column))."))
             if let reference = controller.nearestHunkReference(anchor, path: path) {
                 Button {
                     controller.jumpToNearestHunk(columnID: column.id)
@@ -156,6 +160,9 @@ struct ColumnView: View {
         }
         for pin in controller.pins(in: column.id, path: path) {
             out.append(LineHighlight(lines: pin.region.lines, kind: .pin))
+        }
+        for finding in controller.findings(in: column.id, path: path) where !finding.notFlagged {
+            out.append(LineHighlight(lines: finding.lines.range, kind: .finding(finding.severity)))
         }
         return out
     }

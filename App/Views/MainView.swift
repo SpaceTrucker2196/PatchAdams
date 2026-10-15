@@ -1,4 +1,5 @@
 import SwiftUI
+import SessionModel
 
 /// The window: file tree left, columns middle, request panel on top
 /// (spec "User interface"). Phase 3 adds the comparison panel, Phase 4
@@ -21,6 +22,7 @@ struct MainView: View {
             #endif
         }
         .toolbar { toolbar }
+        .sheet(item: $controller.findingDraft) { _ in FindingForm(controller: controller) }
         .onChange(of: controller.scrollLock, initial: true) { _, on in controller.scrollSync.isEnabled = { on } }
         .alert(String(localized: "Problem"), isPresented: Binding(get: { controller.errorMessage != nil && controller.hasSession }, set: { if !$0 { controller.errorMessage = nil } })) {
             Button(String(localized: "OK")) { controller.errorMessage = nil }
@@ -53,6 +55,10 @@ struct MainView: View {
                     PinsSidebar(controller: controller)
                         .frame(minWidth: 180, idealWidth: 220, maxWidth: 320)
                 }
+                if controller.showFindings {
+                    FindingsSidebar(controller: controller)
+                        .frame(minWidth: 240, idealWidth: 300, maxWidth: 420)
+                }
             }
             Divider()
             statusBar
@@ -80,18 +86,23 @@ struct MainView: View {
             if controller.goldenID != nil {
                 ForEach(controller.visibleColumns) { column in
                     if let summary = controller.goldenSummary(for: column) {
-                        Text(String(localized: "\(column.label): \(summary.files) files, \(summary.lines) lines differ"))
+                        Text(String(localized: "\(controller.displayLabel(column)): \(summary.files) files, \(summary.lines) lines differ"))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
             Spacer()
+            if controller.blind.isOn {
+                Label(String(localized: "Blind"), systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
+                    .help(String(localized: "Blind mode: labels are shuffled numbers (⌘⌥B)"))
+            }
+            SessionTimer(start: controller.sessionStart)
             if let message = controller.statusMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             ForEach(controller.columns) { column in
                 if column.isHidden {
-                    Button("\(column.label) " + String(localized: "hidden")) { controller.toggleHidden(column.id) }
+                    Button("\(controller.displayLabel(column)) " + String(localized: "hidden")) { controller.toggleHidden(column.id) }
                         .buttonStyle(.link).font(.caption)
                 }
             }
@@ -105,7 +116,7 @@ struct MainView: View {
                 Picker(String(localized: "Golden"), selection: Binding(get: { controller.goldenID }, set: { controller.setGolden($0) })) {
                     Text(String(localized: "None")).tag(UUID?.none)
                     ForEach(controller.columns) { column in
-                        Text("★ \(column.label)").tag(UUID?.some(column.id))
+                        Text("★ \(controller.displayLabel(column))").tag(UUID?.some(column.id))
                     }
                 }
                 .pickerStyle(.segmented)
@@ -113,6 +124,15 @@ struct MainView: View {
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
+            Toggle(isOn: Binding(get: { controller.blind.isOn }, set: { _ in controller.toggleBlind() })) {
+                Label(String(localized: "Blind"), systemImage: "eye.slash")
+            }
+            .help(String(localized: "Blind mode: shuffled numbers instead of labels (⌘⌥B)"))
+            .disabled(!controller.hasSession)
+            Toggle(isOn: $controller.showFindings) {
+                Label(String(localized: "Findings"), systemImage: "list.bullet.rectangle")
+            }
+            .help(String(localized: "Findings sidebar"))
             Toggle(isOn: $controller.showSearch) {
                 Label(String(localized: "Search"), systemImage: "magnifyingglass")
             }
@@ -150,6 +170,20 @@ struct MainView: View {
                 Label(String(localized: "Add Patch"), systemImage: "plus")
             }
             .disabled(controller.columns.count >= 4)
+        }
+    }
+}
+
+/// Elapsed review time in the status bar (spec "Avoid reviewer fatigue").
+struct SessionTimer: View {
+    let start: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: start, by: 60)) { context in
+            let minutes = Int(context.date.timeIntervalSince(start) / 60)
+            Text(String(localized: "\(minutes / 60)h \(minutes % 60)m"))
+                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                .help(String(localized: "Time in this session"))
         }
     }
 }

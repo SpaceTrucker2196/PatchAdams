@@ -43,6 +43,40 @@ struct SessionCommands: Commands {
                 .keyboardShortcut("v", modifiers: [.command, .option])
             Button(String(localized: "Rebuild Base from Patches")) { controller.useSyntheticBase() }
                 .disabled(controller.columns.isEmpty)
+            Divider()
+            Button(String(localized: "Open Session…")) { SessionActions.openSession(controller) }
+                .keyboardShortcut("o", modifiers: [.command, .option])
+        }
+        CommandGroup(replacing: .saveItem) {
+            Button(String(localized: "Save Session")) { SessionActions.saveSession(controller, as: false) }
+                .keyboardShortcut("s")
+                .disabled(!controller.hasSession)
+            Button(String(localized: "Save Session As…")) { SessionActions.saveSession(controller, as: true) }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(!controller.hasSession)
+            Divider()
+            Button(String(localized: "Export Markdown…")) { SessionActions.exportMarkdown(controller) }
+                .keyboardShortcut("e")
+                .disabled(!controller.hasSession)
+            Button(String(localized: "Export JSON…")) { SessionActions.exportJSON(controller) }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(!controller.hasSession)
+            Button(String(localized: "Copy Markdown Write-up")) { controller.copyMarkdown() }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(!controller.hasSession)
+        }
+        CommandMenu(String(localized: "Review")) {
+            Button(String(localized: "New Finding from Selection")) { controller.newFindingFromSelection() }
+                .keyboardShortcut("n")
+            Button(String(localized: "Next Finding")) { controller.jumpFinding(forward: true) }
+                .keyboardShortcut("}", modifiers: [])
+            Button(String(localized: "Previous Finding")) { controller.jumpFinding(forward: false) }
+                .keyboardShortcut("{", modifiers: [])
+            Divider()
+            Button(controller.blind.isOn ? String(localized: "Blind Mode Off") : String(localized: "Blind Mode On")) { controller.toggleBlind() }
+                .keyboardShortcut("b", modifiers: [.command, .option])
+                .disabled(!controller.hasSession)
+            Toggle(String(localized: "Findings Sidebar"), isOn: Binding(get: { controller.showFindings }, set: { controller.showFindings = $0 }))
         }
         CommandGroup(after: .pasteboard) {
             Button(String(localized: "Copy Reference")) { controller.copyReference() }

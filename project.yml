@@ -47,6 +47,19 @@ targets:
         LSApplicationCategoryType: public.app-category.developer-tools
         ITSAppUsesNonExemptEncryption: false
         LSMinimumSystemVersion: "14.0"
+        # The .patchadam session package (spec "Persistence").
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Patch Adam Session
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSTypeIsPackage: true
+            LSItemContentTypes: [io.river.patchadam.session]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: io.river.patchadam.session
+            UTTypeDescription: Patch Adam Session
+            UTTypeConformsTo: [com.apple.package]
+            UTTypeTagSpecification:
+              public.filename-extension: [patchadam]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.river.patchadam.mac
@@ -63,6 +76,8 @@ targets:
         product: DiffEngine
       - package: PatchAdam
         product: AlignmentEngine
+      - package: PatchAdam
+        product: SessionModel
 
 schemes:
   PatchAdam:

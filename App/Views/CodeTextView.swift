@@ -2,11 +2,12 @@ import SwiftUI
 import AppKit
 import ApplyEngine
 import AlignmentEngine
+import SessionModel
 
 /// A run of display lines to colour: a located region, a pin, or the
 /// spot an absent region would occupy.
 struct LineHighlight: Hashable {
-    enum Kind: Hashable { case anchor(AnchorStatus), pin, absentMarker }
+    enum Kind: Hashable { case anchor(AnchorStatus), pin, absentMarker, finding(Severity) }
     var lines: Range<Int>
     var kind: Kind
 }
@@ -152,6 +153,12 @@ struct CodeTextView: NSViewRepresentable {
                     let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
                     layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, forCharacterRange: range)
                     layout.addTemporaryAttribute(.underlineColor, value: NSColor.systemYellow, forCharacterRange: range)
+                case .finding(let severity):
+                    // Gutter-side marker (FR-27): a thick underline in the severity colour.
+                    guard lo < hi else { continue }
+                    let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
+                    layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.thick.rawValue, forCharacterRange: range)
+                    layout.addTemporaryAttribute(.underlineColor, value: CodeStyle.severityColor(severity), forCharacterRange: range)
                 case .absentMarker:
                     // A dashed red line at the spot the region would occupy (FR-15).
                     let index = min(lo, lineStarts.count - 1)
@@ -238,6 +245,15 @@ enum CodeStyle {
 
     /// Located-region colours (FR-14): green exact, amber modified,
     /// blue moved. Every status is also a word in the header badge.
+    static func severityColor(_ severity: Severity) -> NSColor {
+        switch severity {
+        case .trivial: return .systemGray
+        case .minor: return .systemBlue
+        case .material: return .systemOrange
+        case .blocking: return .systemRed
+        }
+    }
+
     static func anchorColor(_ status: AnchorStatus) -> NSColor {
         switch status {
         case .exact: return NSColor.systemGreen.withAlphaComponent(0.45)

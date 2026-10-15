@@ -1,4 +1,5 @@
 import SwiftUI
+import SessionModel
 import UniformTypeIdentifiers
 
 /// Shown until the session has a base and at least two patches
@@ -28,7 +29,7 @@ struct WelcomeView: View {
                     }
                     LabeledContent(String(localized: "Patches")) {
                         HStack {
-                            Text(controller.columns.map { "\($0.label) \($0.sourceName)" }.joined(separator: ", "))
+                            Text(controller.columns.map { "\(controller.displayLabel($0)) \(controller.displayName($0))" }.joined(separator: ", "))
                                 .lineLimit(2)
                             Spacer()
                             Button(String(localized: "Add Patches…")) { SessionActions.addPatches(controller) }
@@ -136,8 +137,47 @@ enum SessionActions {
         controller.addPatch(text: text, name: String(localized: "Pasted patch \(controller.columns.count + 1)"))
     }
 
+    static let sessionType = UTType(exportedAs: "io.river.patchadam.session", conformingTo: .package)
+
+    static func openSession(_ controller: SessionController) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [sessionType]
+        panel.message = String(localized: "Choose a .patchadam session")
+        if panel.runModal() == .OK, let url = panel.url { controller.open(sessionURL: url) }
+    }
+
+    /// ⌘S saves in place; ⇧⌘S or a new session asks where.
+    static func saveSession(_ controller: SessionController, as askWhere: Bool) {
+        if !askWhere, let url = controller.sessionURL { controller.save(to: url); return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [sessionType]
+        panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "Review") : controller.sessionName) + ".patchadam"
+        panel.message = String(localized: "Save the session as a .patchadam package")
+        if panel.runModal() == .OK, let url = panel.url { controller.save(to: url) }
+    }
+
+    static func exportMarkdown(_ controller: SessionController) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "review") : controller.sessionName) + ".md"
+        if panel.runModal() == .OK, let url = panel.url { controller.write(export: Data(controller.markdownExport().utf8), to: url) }
+    }
+
+    static func exportJSON(_ controller: SessionController) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "review") : controller.sessionName) + ".json"
+        if panel.runModal() == .OK, let url = panel.url {
+            do { controller.write(export: try controller.jsonExport(), to: url) } catch { controller.errorMessage = "\(error)" }
+        }
+    }
+
     static func handleDropped(_ urls: [URL], _ controller: SessionController) {
         for url in urls {
+            if url.pathExtension.lowercased() == SessionPackage.fileExtension { controller.open(sessionURL: url); continue }
             var isDirectory: ObjCBool = false
             FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
             let ext = url.pathExtension.lowercased()

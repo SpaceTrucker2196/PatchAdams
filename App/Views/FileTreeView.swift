@@ -29,7 +29,7 @@ struct FileTreeView: View {
                     }
                     Spacer(minLength: 2)
                     ForEach(controller.columns) { column in
-                        chip(column.label, row.chips[column.id] ?? .unchanged)
+                        chip(controller.displayLabel(column), row.chips[column.id] ?? .unchanged)
                     }
                 }
                 .tag(row.path)

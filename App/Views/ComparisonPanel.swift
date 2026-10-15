@@ -13,7 +13,7 @@ struct ComparisonPanel: View {
             HStack {
                 Text(String(localized: "Comparison")).font(.headline)
                 if let region = controller.comparedRegion, let source = controller.columns.first(where: { $0.id == region.columnID }) {
-                    Text(String(localized: "\(source.label) · \((region.path as NSString).lastPathComponent) · \(region.lines.count) lines"))
+                    Text(String(localized: "\(controller.displayLabel(source)) · \((region.path as NSString).lastPathComponent) · \(region.lines.count) lines"))
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text(String(localized: "Select lines in a column to compare them with the other columns."))
@@ -39,9 +39,18 @@ struct ComparisonPanel: View {
     private func pane(column: PatchColumn, path: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text(column.label).font(.caption.bold())
-                Text(column.sourceName).font(.caption).lineLimit(1).truncationMode(.middle)
+                Text(controller.displayLabel(column)).font(.caption.bold())
+                Text(controller.displayName(column)).font(.caption).lineLimit(1).truncationMode(.middle)
                 Spacer()
+                // FR-18: the reviewer's own selection in this column replaces the engine's anchor.
+                if controller.hasManualAnchor(columnID: column.id) {
+                    Button(String(localized: "Clear manual anchor")) { controller.clearManualAnchor(columnID: column.id) }
+                        .buttonStyle(.link).font(.caption)
+                } else if controller.selectionIsEmpty[column.id] == false, controller.selections[column.id] != nil {
+                    Button(String(localized: "Use selection as anchor")) { controller.useSelectionAsAnchor(columnID: column.id) }
+                        .buttonStyle(.link).font(.caption)
+                        .help(String(localized: "Remember the selected lines here as the match for the compared region (FR-18)"))
+                }
                 if let anchor = controller.anchor(for: column.id) {
                     Text(anchor.status == .absent ? anchor.status.rawValue : "\(anchor.status.rawValue) \(Int((anchor.confidence * 100).rounded()))%")
                         .font(.caption.bold())
@@ -115,7 +124,7 @@ struct PinsSidebar: View {
                     ForEach(controller.pins) { pin in
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
-                                Text(pin.label).font(.caption.bold())
+                                Text(controller.displayLabel(pin.label)).font(.caption.bold())
                                 Text(pin.reference).font(.caption)
                                 Spacer()
                                 Button { controller.removePin(pin.id) } label: { Image(systemName: "pin.slash") }.buttonStyle(.plain)
@@ -158,7 +167,7 @@ struct SearchPanel: View {
                         ForEach(group.columns) { columnHits in
                             ForEach(columnHits.hits) { hit in
                                 HStack(spacing: 6) {
-                                    Text(columnHits.label).font(.caption.bold()).frame(width: 16)
+                                    Text(controller.displayLabel(columnHits.label)).font(.caption.bold()).frame(width: 16)
                                     Text(hit.reference).font(.caption).frame(width: 190, alignment: .leading)
                                     Text(hit.text).font(.system(size: 10, design: .monospaced)).lineLimit(1)
                                 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import ApplyEngine
 import AlignmentEngine
+import SessionModel
 
 // Phase 3: selection alignment, pins, search (FR-13 to FR-19).
 extension SessionController {
@@ -35,7 +36,11 @@ extension SessionController {
         locateTask = Task {
             let result = await engines.locate(region.lines, source: sourceLines, sourcePostKeyed: sourcePostKeyed, targets: targets)
             guard !Task.isCancelled, generation == locateGeneration else { return }
-            anchors = result
+            var merged = result
+            for id in merged.keys {
+                if let manual = manualAnchor(for: region, in: id) { merged[id] = manual }   // FR-18: the reviewer wins
+            }
+            anchors = merged
         }
     }
 

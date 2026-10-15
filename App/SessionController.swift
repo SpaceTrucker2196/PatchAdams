@@ -3,6 +3,7 @@ import PatchModel
 import BaseLoader
 import ApplyEngine
 import AlignmentEngine
+import SessionModel
 
 // The one owner of session state (spec "Technical architecture"). The
 // shell never calls an engine: everything heavy runs on `Engines`, an
@@ -18,6 +19,8 @@ struct PatchColumn: Identifiable, Hashable {
     /// (FR-4, MISSION.md §6).
     var sourceName: String
     var patch: Patch
+    /// The patch as read, copied into the `.patchadam` package on save.
+    var sourceText: String
     var applied: AppliedPatch?
     var isHidden = false
     var isRead = false
@@ -155,6 +158,21 @@ final class SessionController {
     /// Columns whose text view selection is non-empty (a drag, not a caret).
     var selectionIsEmpty: [UUID: Bool] = [:]
 
+    // Phase 4: the review record (SessionModel). Mirrored into a
+    // `Session` on save and export; see SessionController+Review.
+    var sessionName = ""
+    var sessionURL: URL?
+    var findings: [Finding] = []
+    var ranking = Ranking()
+    var categories = Session.defaultCategories
+    var blind = BlindMode(isOn: false, seed: 0)
+    var manualAnchors: [ManualAnchor] = []
+    var showFindings = true
+    var findingDraft: FindingDraft?
+    var findingFilter = FindingFilter()
+    var sessionStart = Date()
+    var isDirty = false
+
     @ObservationIgnored let engines = Engines()
     @ObservationIgnored let scrollSync = ScrollSync()
     @ObservationIgnored private var scrollGeneration = 0
@@ -201,41 +219,46 @@ final class SessionController {
 
     func addPatch(url: URL) {
         do {
-            let patch = try UnifiedDiffParser.parse(contentsOf: url)
-            addPatch(patch, name: url.lastPathComponent)
+            let text = BaseLoader.text(from: try Data(contentsOf: url))
+            addPatch(text: text, name: url.lastPathComponent)
         } catch {
             errorMessage = "\(url.lastPathComponent): \(error)"
         }
     }
 
-    func addPatch(text: String, name: String) {
+    func addPatch(text: String, name: String, label: String? = nil) {
         do {
-            addPatch(try UnifiedDiffParser.parse(text), name: name)
+            addPatch(try UnifiedDiffParser.parse(text), text: text, name: name, label: label)
         } catch {
             errorMessage = "\(name): \(error)"
         }
     }
 
-    private func addPatch(_ patch: Patch, name: String) {
+    private func addPatch(_ patch: Patch, text: String, name: String, label wanted: String? = nil) {
         guard columns.count < 4 else {
             errorMessage = String(localized: "A session holds at most four patches.")
             return
         }
         let labels = ["A", "B", "C", "D"]
         let used = Set(columns.map(\.label))
-        let label = labels.first { !used.contains($0) } ?? "?"
-        let column = PatchColumn(id: UUID(), label: label, sourceName: name, patch: patch)
+        let label = wanted.flatMap { used.contains($0) ? nil : $0 } ?? labels.first { !used.contains($0) } ?? "?"
+        let column = PatchColumn(id: UUID(), label: label, sourceName: name, patch: patch, sourceText: text)
         columns.append(column)
         apply(columnID: column.id)
         if selectedPath == nil { selectedPath = fileRows.first?.path }
     }
 
     func removeColumn(_ id: UUID) {
+        let label = columns.first { $0.id == id }?.label
         columns.removeAll { $0.id == id }
         displayCache = [:]
         goldenCache = [:]
         if goldenID == id { goldenID = nil }
         pins.removeAll { $0.region.columnID == id }
+        if let label {
+            findings.removeAll { $0.label == label }
+            ranking.ranks[label] = nil
+        }
         anchors = [:]
         comparedRegion = nil
     }
@@ -254,6 +277,17 @@ final class SessionController {
         searchResults = []
         requestText = ""
         showRequestPanel = true
+        sessionName = ""
+        sessionURL = nil
+        findings = []
+        ranking = Ranking()
+        categories = Session.defaultCategories
+        blind = BlindMode(isOn: false, seed: 0)
+        manualAnchors = []
+        findingDraft = nil
+        findingFilter = FindingFilter()
+        sessionStart = Date()
+        isDirty = false
     }
 
     /// Open patch files against a base rebuilt from them (debug hooks).

@@ -11,7 +11,7 @@ import PackageDescription
 //   ApplyEngine      → PatchModel, BaseLoader
 //   DiffEngine       → nothing
 //   AlignmentEngine  → ApplyEngine, DiffEngine
-//   SessionModel     → PatchModel                         (Phase 4, not yet landed)
+//   SessionModel     → PatchModel
 // Add a target only when its first real code lands with tests.
 let package = Package(
     name: "PatchAdam",
@@ -22,6 +22,7 @@ let package = Package(
         .library(name: "ApplyEngine", targets: ["ApplyEngine"]),
         .library(name: "DiffEngine", targets: ["DiffEngine"]),
         .library(name: "AlignmentEngine", targets: ["AlignmentEngine"]),
+        .library(name: "SessionModel", targets: ["SessionModel"]),
         .executable(name: "patchadam", targets: ["patchadam"]),
     ],
     targets: [
@@ -43,14 +44,19 @@ let package = Package(
         // and confidence (FR-13…15); golden rendering (FR-21).
         .target(name: "AlignmentEngine", dependencies: ["ApplyEngine", "DiffEngine"]),
 
+        // The review record: Session, Finding, Ranking, Pin, ManualAnchor;
+        // the .patchadam package; Markdown and JSON export (Phase 4).
+        .target(name: "SessionModel", dependencies: ["PatchModel"]),
+
         // Command-line harness: exercises the engines on fixture patches
         // without the app. `swift run patchadam parse <patch>...`
-        .executableTarget(name: "patchadam", dependencies: ["PatchModel", "BaseLoader", "ApplyEngine", "DiffEngine", "AlignmentEngine"]),
+        .executableTarget(name: "patchadam", dependencies: ["PatchModel", "BaseLoader", "ApplyEngine", "DiffEngine", "AlignmentEngine", "SessionModel"]),
 
         .testTarget(name: "PatchModelTests", dependencies: ["PatchModel"]),
         .testTarget(name: "BaseLoaderTests", dependencies: ["BaseLoader"]),
         .testTarget(name: "ApplyEngineTests", dependencies: ["ApplyEngine", "PatchModel", "BaseLoader"]),
         .testTarget(name: "DiffEngineTests", dependencies: ["DiffEngine", "ApplyEngine", "PatchModel", "BaseLoader"]),
+        .testTarget(name: "SessionModelTests", dependencies: ["SessionModel", "PatchModel"]),
         .testTarget(name: "AlignmentEngineTests", dependencies: ["AlignmentEngine", "ApplyEngine", "DiffEngine", "PatchModel", "BaseLoader"]),
     ],
     swiftLanguageModes: [.v6]
