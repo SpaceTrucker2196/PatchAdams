@@ -35,6 +35,7 @@ enum DebugHooks {
         }
         guard args.contains("--demo") || args.contains("--stress") || value(after: "--shot") != nil || value(after: "--patches") != nil || value(after: "--open") != nil else { return }
 
+        log("git: \(controller.gitVersion ?? "not found") · font \(CodeStyle.fontKey) · blind prompt shown \(UserDefaults.standard.bool(forKey: SessionController.blindPromptShownKey))")
         if let pkg = value(after: "--open") { controller.open(sessionURL: URL(fileURLWithPath: pkg)) }
 
         if args.contains("--demo") {
@@ -162,6 +163,7 @@ enum DebugHooks {
                 log("export-md \(file): \(md.count) chars, \(md.split(separator: "\n").count) lines")
             }
             if args.contains("--state") {
+                log("state: blind prompt showing \(controller.showBlindPrompt)")
                 log("state: columns \(controller.columns.map { "\($0.label)(\($0.sourceName))\($0.isHidden ? " hidden" : "")" }.joined(separator: " ")) golden \(controller.goldenID.flatMap { id in controller.columns.first { $0.id == id }?.label } ?? "none") blind \(controller.blind.isOn) seed \(controller.blind.seed) mapping \(controller.blindMapping.sorted { $0.key < $1.key })")
                 log("state: \(controller.findings.count) findings \(controller.findings.map { "\($0.label) \($0.reference) [\($0.severity.rawValue)] \($0.title)" }) pins \(controller.pins.map(\.reference)) ranks \(controller.ranking.ranks.sorted { $0.key < $1.key }) rationale \"\(controller.ranking.rationale)\" request \(controller.requestText.count) chars")
             }

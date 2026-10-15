@@ -50,6 +50,7 @@ struct CodeTextView: NSViewRepresentable {
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.font = CodeStyle.font
+        textView.typingAttributes = [.font: CodeStyle.font]
         textView.textContainerInset = NSSize(width: 0, height: 4)
         textView.delegate = context.coordinator
         textView.onFocus = { [weak controller] in controller?.focusedColumnID = context.coordinator.columnID }
@@ -237,7 +238,20 @@ final class FocusReportingTextView: NSTextView {
 }
 
 enum CodeStyle {
-    static var font: NSFont { NSFont.monospacedSystemFont(ofSize: 12, weight: .regular) }
+    static let fontNameKey = "codeFontName"
+    static let fontSizeKey = "codeFontSize"
+
+    /// The reviewer's font from Settings; system monospace 12 pt by default.
+    static var font: NSFont {
+        let defaults = UserDefaults.standard
+        let size = defaults.object(forKey: fontSizeKey) as? Double ?? 12
+        let clamped = CGFloat(min(max(size, 9), 24))
+        if let name = defaults.string(forKey: fontNameKey), !name.isEmpty, let font = NSFont(name: name, size: clamped) { return font }
+        return NSFont.monospacedSystemFont(ofSize: clamped, weight: .regular)
+    }
+
+    /// Changes whenever the font does, for view content keys.
+    static var fontKey: String { "\(font.fontName)@\(font.pointSize)" }
 
     static var addedBackground: NSColor { NSColor.systemGreen.withAlphaComponent(0.18) }
     static var removedBackground: NSColor { NSColor.systemRed.withAlphaComponent(0.16) }

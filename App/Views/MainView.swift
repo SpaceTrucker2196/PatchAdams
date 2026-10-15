@@ -24,6 +24,18 @@ struct MainView: View {
         .toolbar { toolbar }
         .sheet(item: $controller.findingDraft) { _ in FindingForm(controller: controller) }
         .onChange(of: controller.scrollLock, initial: true) { _, on in controller.scrollSync.isEnabled = { on } }
+        .onChange(of: controller.hasSession) { _, has in
+            // One-time question on a new session (spec: blind off by default, with a prompt).
+            if has, controller.sessionURL == nil, !UserDefaults.standard.bool(forKey: SessionController.blindPromptShownKey) {
+                controller.showBlindPrompt = true
+            }
+        }
+        .alert(String(localized: "Review blind?"), isPresented: $controller.showBlindPrompt) {
+            Button(String(localized: "Blind")) { UserDefaults.standard.set(true, forKey: SessionController.blindPromptShownKey); controller.toggleBlind() }
+            Button(String(localized: "Not Now")) { UserDefaults.standard.set(true, forKey: SessionController.blindPromptShownKey) }
+        } message: {
+            Text(String(localized: "Blind mode shows the patches as shuffled numbers and hides their file names until you export, to reduce order bias. You can switch it at any time with ⌘⌥B. This question is asked once; Settings can bring it back."))
+        }
         .alert(String(localized: "Problem"), isPresented: Binding(get: { controller.errorMessage != nil && controller.hasSession }, set: { if !$0 { controller.errorMessage = nil } })) {
             Button(String(localized: "OK")) { controller.errorMessage = nil }
         } message: {

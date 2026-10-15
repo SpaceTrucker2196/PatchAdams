@@ -8,6 +8,8 @@ import SessionModel
 struct ColumnView: View {
     let column: PatchColumn
     @Bindable var controller: SessionController
+    @AppStorage(CodeStyle.fontNameKey) private var fontName = ""
+    @AppStorage(CodeStyle.fontSizeKey) private var fontSize = 12.0
 
     private var path: String? { controller.selectedPath }
     private var file: AppliedFile? { path.flatMap { controller.renderedFile(column: column, path: $0) } }
@@ -204,7 +206,7 @@ struct ColumnView: View {
                     absentNotice(anchor, path: path)
                 }
                 CodeTextView(columnID: column.id, lines: lines,
-                             contentKey: "\(column.id)|\(path)|\(controller.showRemovedLines)|\(lines.count)|\(file?.status.label ?? "")|\(controller.goldenID?.uuidString ?? "")",
+                             contentKey: "\(column.id)|\(path)|\(controller.showRemovedLines)|\(lines.count)|\(file?.status.label ?? "")|\(controller.goldenID?.uuidString ?? "")|\(fontName)@\(fontSize)",
                              scrollRequest: controller.scrollRequests[column.id],
                              highlights: highlights(path: path),
                              controller: controller)

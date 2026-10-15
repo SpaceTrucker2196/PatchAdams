@@ -65,5 +65,22 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
   - [x] One review in blind mode; the export reveals the mapping only
     at the end. (`--blind`: seeded order C→1 D→2 B→3 A→4; the body
     names patches 1–4, `## Mapping` is the last section.)
-- [ ] **M5** (M) — Distribution: notarized direct download, DMG,
-  Settings (font, size), first-run prompt for blind mode.
+- [x] **M5** (M) — Distribution: notarized direct download, DMG,
+  Settings (font, size), first-run prompt for blind mode. 2026-10-14,
+  with one owner task left (below).
+  - [x] `make dmg` builds a hardened-runtime Release app and a
+    compressed DMG with an Applications link (2.3 MB); the app on the
+    mounted image launches. `make notarize` submits with the App Store
+    Connect key and staples.
+  - [ ] **Owner:** create a *Developer ID Application* certificate (the
+    account holder only; this Mac has Apple Development and Apple
+    Distribution identities, which cannot be notarized), then
+    `make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'`.
+  - [x] Settings: monospace font and size, system monospace 12 pt by
+    default; every column re-renders on change (Menlo 18 pt checked on
+    screen).
+  - [x] One-time blind-mode prompt on a new session; Settings can bring
+    it back.
+  - [x] `git` detected at launch and its version shown on the welcome
+    view (git 2.54.0 here); without git the Git Revision base is off and
+    directory and archive bases still work.

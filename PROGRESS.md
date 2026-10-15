@@ -4,6 +4,34 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-14 — M5 (#5): distribution
+
+**Done.** `make release` / `make dmg` / `make notarize` (FACTORY.md
+"Release"): hardened runtime on, Release build signed with `SIGN`,
+compressed DMG with an Applications link, notarytool submit + staple
+with the App Store Connect key already on this Mac. Ad-hoc DMG built
+(2.3 MB), mounted, and its app launched. Settings window: code font
+(any fixed-pitch family) and size 9–24, default system monospace
+12 pt; `CodeStyle.font` reads UserDefaults and the column content key
+carries the font so a change re-renders at once. One-time "Review
+blind?" prompt on a new session (not on reopen), with a Settings
+toggle to ask again. `git --version` at launch; the welcome view shows
+it or says the Git Revision base is off. `MARKETING_VERSION` 0.5.0.
+
+**Blocked, owner.** Notarization itself. This Mac has Apple Development
+and Apple Distribution identities only; a notarized DMG needs a
+*Developer ID Application* certificate, which only the Apple Developer
+account holder can create. Once it is in the keychain:
+`make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'`.
+
+**Next.** No production order open. Candidates: real-base fixture
+loading (D4 "what it does not give"), fuzz fixtures, the original
+write-ups for D5.
+
+**Owner spot-check.** Settings layout and the prompt wording.
+`hdiutil create` prints a deprecation notice on macOS 27 (it still
+works); `diskutil image create` is the successor when it bites.
+
 ## 2026-10-14 — M4 (#4): review workflow
 
 **Done.** `SessionModel` target (PatchModel only, no UI): `Session`,

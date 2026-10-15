@@ -25,6 +25,8 @@ struct WelcomeView: View {
                             Spacer()
                             Button(String(localized: "Directory or Archive…")) { SessionActions.openBase(controller) }
                             Button(String(localized: "Git Revision…")) { showGitSheet = true }
+                                .disabled(controller.gitVersion == nil)
+                                .help(controller.gitVersion == nil ? String(localized: "git was not found on this Mac") : controller.gitVersion ?? "")
                         }
                     }
                     LabeledContent(String(localized: "Patches")) {
@@ -39,6 +41,13 @@ struct WelcomeView: View {
                     if controller.base == nil, !controller.columns.isEmpty {
                         Button(String(localized: "No base at hand? Rebuild one from the patches")) { controller.useSyntheticBase() }
                             .help(String(localized: "Every base line any patch shows is used; lines no patch touches are filler."))
+                    }
+                    Divider()
+                    if let git = controller.gitVersion {
+                        Label(git, systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Label(String(localized: "git not found: directory and archive bases still work; the Git Revision base is off."), systemImage: "exclamationmark.triangle")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .padding(6)

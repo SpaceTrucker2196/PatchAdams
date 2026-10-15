@@ -173,6 +173,15 @@ final class SessionController {
     var sessionStart = Date()
     var isDirty = false
 
+    /// `git --version` at launch, or `nil` when git is not installed:
+    /// the Git Revision base is then disabled and the welcome view says
+    /// so; directory and archive bases still work (spec risk table).
+    let gitVersion: String? = Git.version()
+    static let blindPromptShownKey = "blindPromptShown"
+    /// The one-time blind-mode question on a new session (spec open
+    /// question: off by default, with a prompt).
+    var showBlindPrompt = false
+
     @ObservationIgnored let engines = Engines()
     @ObservationIgnored let scrollSync = ScrollSync()
     @ObservationIgnored private var scrollGeneration = 0

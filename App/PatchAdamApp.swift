@@ -22,6 +22,7 @@ struct PatchAdamApp: App {
         }
         .windowResizability(.contentMinSize)
         .commands { SessionCommands(controller: controller) }
+        Settings { SettingsView() }
     }
 }
 

@@ -71,6 +71,22 @@ Dependency rules are in `Package.swift`'s header comment and
 4. `make harness` → one parse block and one apply report per fixture,
    every file `clean`, exit 0.
 
+## Release: DMG and notarization (D2, M5)
+
+    make dmg                         # ad-hoc signed: builds, mounts, runs locally
+    make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'
+
+`make release` builds the Release configuration with the hardened
+runtime and signs it with `SIGN` (default `-`, ad-hoc); `make dmg`
+wraps the app and an Applications link in a compressed DMG at
+`.build/PatchAdam-<MARKETING_VERSION>.dmg` (the version comes from
+`project.yml`); `make notarize` submits that DMG with the App Store
+Connect API key on this box (`NOTARY_KEY_ID`, `NOTARY_ISSUER` in the
+Makefile; the `.p8` lives in `~/.appstoreconnect/private_keys/`),
+waits, staples, and checks it with `spctl`. Notarization needs a
+*Developer ID Application* identity, which only the account holder can
+create; `make notarize` refuses an ad-hoc signature up front.
+
 ## Driving the window from a shell (debug builds)
 
 `App/DebugHooks.swift` reads launch arguments so the factory can check
@@ -94,7 +110,9 @@ is logged. M4 flags: `--open <pkg>` opens a `.patchadam` session;
 `--blind`; `--finding "A:10-20|title|category|severity[|notflagged]"`
 (repeatable); `--rank "A=1,B=2"`; `--rationale`; `--save <pkg>`;
 `--export-md <file>`; `--state` logs columns, golden, findings, pins,
-ranks and the blind mapping. The hooks run in stages (+3 s session
+ranks and the blind mapping, and whether the blind prompt is up; the
+first hook line logs the detected `git`, the code font in force and
+the blind-prompt flag. The hooks run in stages (+3 s session
 setup, +5 s selection, +8 s persist, +11 s screenshot) because a golden
 switch re-lays the text views and would drop a selection made in the
 same instant.
