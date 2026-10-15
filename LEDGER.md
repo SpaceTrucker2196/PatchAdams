@@ -15,3 +15,4 @@ whole ledger: `ledger.py --energy-total`.
 | c7456ec | 2026-10-14T20:22:51Z | claude-fable-5-1 | 1770 | 362365 | 9176360 | 563343 | 31.6969 | #1 M1 engines: BaseLoader, ApplyEngine, DiffEngine, 6f70373 |
 | 7a78256 | 2026-10-14T21:29:20Z | claude-fable-5-1 | 3842 | 585333 | 40269970 | 415901 | 47.6906 | #2 M2 viewer: tree, columns, gutters, scroll lock, 34ca0f4 |
 | 691d6c7 | 2026-10-15T00:01:22Z | claude-fable-5-1 | 3438 | 242551 | 18724217 | 565724 | 28.1575 | M3 comparison: AlignmentEngine, golden patch, search (#3, 7375826) |
+| 73f7fc4 | 2026-10-15T00:19:25Z | claude-fable-5-1 | 2892 | 133177 | 18574963 | 256870 | 16.4689 | M4 review workflow: SessionModel, findings, ranking, export, sessions, blind mod |
