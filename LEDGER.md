@@ -14,3 +14,4 @@ whole ledger: `ledger.py --energy-total`.
 | e05f229 | 2026-10-14T17:47:12Z | claude-fable-5-1 | 1382 | 67110 | 4012923 | 350572 | 11.3840 | #6 synthetic fixture bases (D4), 0d88cb9 |
 | c7456ec | 2026-10-14T20:22:51Z | claude-fable-5-1 | 1770 | 362365 | 9176360 | 563343 | 31.6969 | #1 M1 engines: BaseLoader, ApplyEngine, DiffEngine, 6f70373 |
 | 7a78256 | 2026-10-14T21:29:20Z | claude-fable-5-1 | 3842 | 585333 | 40269970 | 415901 | 47.6906 | #2 M2 viewer: tree, columns, gutters, scroll lock, 34ca0f4 |
+| 691d6c7 | 2026-10-15T00:01:22Z | claude-fable-5-1 | 3438 | 242551 | 18724217 | 565724 | 28.1575 | M3 comparison: AlignmentEngine, golden patch, search (#3, 7375826) |
