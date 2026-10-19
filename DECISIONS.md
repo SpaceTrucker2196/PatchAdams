@@ -18,6 +18,9 @@ next agent will cheerfully rebuild them.
 | D3 | 2026-10-14 | Ship the slop category list as the session default; editable per session | provisional | docs/spec.md "Category" | — |
 | D4 | 2026-10-14 | Fixture bases are synthetic, rebuilt from each patch's own hunks and checked in under `Fixtures/bases/` | adopted | issue #6; `SyntheticBaseTests` | — |
 | D5 | 2026-10-14 | The Markdown write-up shape is fixed from FR-32 (title, request collapsed, ranking table, findings by patch in rank order, not-flagged, rationale; blind mapping last) | adopted | issue #3 gate; `SessionModelTests.testMarkdownExportMatchesTheWriteUpShape` | — |
+| D6 | 2026-10-14 | Blind mode is off for a new session, with a one-time prompt; Settings can ask again | provisional | docs/spec.md open questions; issue #5 | — |
+| D7 | 2026-10-14 | One base per session; no two-base sessions | provisional | docs/spec.md open questions; `Session.base` is a single `BasePointer` | — |
+| D8 | 2026-10-14 | The Markdown export includes the request text, collapsed in a `<details>` block | provisional | docs/spec.md open questions; D5 | — |
 
 `status` is one of:
 
@@ -139,3 +142,44 @@ the findings.
 **What would change this.** The owner pasting one of the original
 write-ups into `docs/`. Then the renderer follows it and the test's
 expected text changes with it; nothing else moves.
+
+## D6 — blind mode off by default, asked once
+
+**Decision.** A new session opens with letter labels. The first time a
+session has a base and two patches, the app asks "Review blind?" once.
+The answer is remembered in UserDefaults (`blindPromptShown`), and a
+Settings toggle can bring the question back. A reopened session never
+asks; it keeps the blind state it was saved with (MISSION.md §8).
+
+**Why.** The spec's open question proposes exactly this. Blind mode
+reduces order bias, but forcing it on surprises a reviewer who needs
+the file names, for example to match a ticket.
+
+**What would change this.** A review team that wants every review
+blind. Then the default flips and the prompt asks the other way.
+
+## D7 — one base per session
+
+**Decision.** A session has one base. `Session.base` is a single
+`BasePointer`; every column applies against it.
+
+**Why.** The spec's open question proposes it. Alignment maps regions
+through base line numbers (spec "Alignment algorithm", step 1); two
+bases would need a base-to-base line map first, and no fixture needs
+one.
+
+**What would change this.** A real review where the patches were made
+against different revisions. Then a base-to-base diff becomes the
+first step of alignment.
+
+## D8 — the request text is in the export, collapsed
+
+**Decision.** The Markdown export carries the request text in a
+`<details><summary>Request</summary>` block under the title (D5).
+
+**Why.** The spec's open question proposes it. Findings are judged
+against the request, so a reader of the write-up needs it, but it
+should not push the ranking off the first screen.
+
+**What would change this.** A review form that rejects HTML in
+Markdown. Then the request moves under a plain `## Request` heading.
