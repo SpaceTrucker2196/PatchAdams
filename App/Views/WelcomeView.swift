@@ -138,6 +138,24 @@ enum SessionActions {
         }
     }
 
+    static let patchExtensions: Set<String> = ["patch", "diff", "txt"]
+
+    static func isPatchFile(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && !isDirectory.boolValue
+            && (patchExtensions.contains(url.pathExtension.lowercased()) || url.pathExtension.isEmpty)
+    }
+
+    /// One patch file from a picker, for a column's slot (issue #7).
+    static func chooseOnePatch() -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText, UTType(filenameExtension: "diff") ?? .plainText, .plainText]
+        panel.message = String(localized: "Choose a unified diff file")
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
     static func pastePatch(_ controller: SessionController) {
         guard let text = NSPasteboard.general.string(forType: .string), text.contains("@@") else {
             controller.errorMessage = String(localized: "The clipboard does not hold a unified diff.")

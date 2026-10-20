@@ -86,6 +86,16 @@ struct MainView: View {
             if controller.visibleColumns.isEmpty {
                 ContentUnavailableView(String(localized: "All columns hidden"), systemImage: "eye.slash")
             }
+            if controller.columns.count < 4 {
+                // The add slot (issue #7): room for one more patch.
+                VStack(spacing: 0) {
+                    PatchSlot(role: .add, controller: controller)
+                        .padding(.horizontal, 4).padding(.vertical, 3)
+                    Spacer()
+                }
+                .frame(width: 170)
+                .background(Color(nsColor: .windowBackgroundColor))
+            }
         }
         .padding(2)
     }

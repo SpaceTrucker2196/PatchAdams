@@ -19,6 +19,9 @@ struct ColumnView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            PatchSlot(role: .replace(column.id), controller: controller)
+                .padding(.horizontal, 4).padding(.vertical, 3)
+                .background(Color(nsColor: .windowBackgroundColor))
             header
             Divider()
             content

@@ -20,6 +20,7 @@ import SessionModel
 ///   --finding "A:10-20|title|category|severity[|notflagged]"   add a finding from that region (repeatable)
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
+///   --replace B=/x.patch   put that patch in column B (issue #7); --add /x.patch adds one
 ///   --state                log column order, golden, findings, pins, blind mapping
 ///   --stress               time rendering a 10,000-line synthetic file
 ///   --shot <png>           after everything else, render the window to this PNG
@@ -86,6 +87,15 @@ enum DebugHooks {
                 } else {
                     i += 1
                 }
+            }
+            if let spec = value(after: "--replace"), let eq = spec.firstIndex(of: "="),
+               let column = controller.columns.first(where: { $0.label == String(spec[..<eq]) }) {
+                controller.replacePatch(columnID: column.id, url: URL(fileURLWithPath: String(spec[spec.index(after: eq)...])))
+                log("replace \(spec) → \(controller.statusMessage ?? "") findings left for \(column.label): \(controller.findings.filter { $0.label == column.label }.count)")
+            }
+            if let path = value(after: "--add") {
+                controller.addPatch(url: URL(fileURLWithPath: path))
+                log("add \(path) → columns \(controller.columns.map { "\($0.label)(\($0.sourceName))" }.joined(separator: " "))")
             }
             if let ranks = value(after: "--rank") {
                 for pair in ranks.split(separator: ",") {

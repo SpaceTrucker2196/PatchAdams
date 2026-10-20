@@ -4,6 +4,23 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-20 — #7: a patch slot above every column
+
+**Done.** A dashed slot sits above each column header: drop a patch
+file on it, or click it to choose one. On a filled column it replaces
+that column's patch and keeps the label; the findings, pins, manual
+anchors and rank that pointed at the old patch go, after a
+confirmation when there are findings. While a session has fewer than
+four patches, an "Add a patch" slot sits to the right of the columns.
+On a base rebuilt from the patches, both replace and add rebuild the
+base, because the new patch can show base lines the old set did not.
+`--replace B=/x.patch` and `--add /x.patch` drive it from a shell.
+Checked on screen: B replaced with kettle-4 (its finding removed),
+a fourth patch added as D.
+
+**Owner spot-check.** Slot wording ("Drop a patch to replace A · or
+click", "Add a patch") and the replace confirmation.
+
 ## 2026-10-14 — M5 (#5): distribution
 
 **Done.** `make release` / `make dmg` / `make notarize` (FACTORY.md

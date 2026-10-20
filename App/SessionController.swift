@@ -253,8 +253,54 @@ final class SessionController {
         let label = wanted.flatMap { used.contains($0) ? nil : $0 } ?? labels.first { !used.contains($0) } ?? "?"
         let column = PatchColumn(id: UUID(), label: label, sourceName: name, patch: patch, sourceText: text)
         columns.append(column)
-        apply(columnID: column.id)
+        if case .inMemory? = base?.origin {
+            useSyntheticBase()   // a rebuilt base must cover the new patch's lines too
+        } else {
+            apply(columnID: column.id)
+        }
         if selectedPath == nil { selectedPath = fileRows.first?.path }
+    }
+
+    /// Put a different patch in an existing column (issue #7). The
+    /// column keeps its id and label, so "B" still means this column
+    /// (MISSION.md §6). Everything that pointed at lines of the old
+    /// patch goes: findings, pins, manual anchors, its rank.
+    func replacePatch(columnID: UUID, url: URL) {
+        guard let i = columns.firstIndex(where: { $0.id == columnID }) else { return }
+        let text: String
+        let patch: Patch
+        do {
+            text = BaseLoader.text(from: try Data(contentsOf: url))
+            patch = try UnifiedDiffParser.parse(text)
+        } catch {
+            errorMessage = "\(url.lastPathComponent): \(error)"
+            return
+        }
+        let label = columns[i].label
+        columns[i].patch = patch
+        columns[i].sourceText = text
+        columns[i].sourceName = url.lastPathComponent
+        columns[i].applied = nil
+        columns[i].isRead = false
+        findings.removeAll { $0.label == label }
+        pins.removeAll { $0.region.columnID == columnID }
+        manualAnchors.removeAll { $0.sourceLabel == label || $0.targetLabel == label }
+        ranking.ranks[label] = nil
+        selections[columnID] = nil
+        anchors = [:]
+        comparedRegion = nil
+        displayCache = [:]
+        goldenCache = [:]
+        isDirty = true
+        // A base rebuilt from the patches must be rebuilt again: the new
+        // patch can show base lines the old one did not.
+        if case .inMemory? = base?.origin {
+            useSyntheticBase()
+        } else {
+            apply(columnID: columnID)
+        }
+        if let path = selectedPath, !allRows.contains(where: { $0.path == path }) { selectedPath = fileRows.first?.path }
+        statusMessage = String(localized: "\(label) is now \(url.lastPathComponent)")
     }
 
     func removeColumn(_ id: UUID) {
