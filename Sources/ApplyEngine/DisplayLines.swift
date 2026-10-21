@@ -147,3 +147,23 @@ extension Array where Element == DisplayLine {
         return answer
     }
 }
+
+extension Array where Element == DisplayLine {
+    /// Each run of synthetic filler lines (D4) becomes one unnumbered
+    /// marker line whose text `marker` makes from the run's length
+    /// (issue #12). Real lines keep their numbers, so references,
+    /// scroll lock and alignment are unchanged.
+    public func collapsingSyntheticFiller(marker: (Int) -> String) -> [DisplayLine] {
+        var out: [DisplayLine] = []
+        out.reserveCapacity(count)
+        var run = 0
+        func flush() {
+            if run > 0 { out.append(DisplayLine(kind: .context, baseLine: nil, postLine: nil, text: marker(run))); run = 0 }
+        }
+        for line in self {
+            if SyntheticBase.isFiller(line.text) { run += 1 } else { flush(); out.append(line) }
+        }
+        flush()
+        return out
+    }
+}

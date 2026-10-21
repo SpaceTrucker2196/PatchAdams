@@ -44,6 +44,11 @@ public enum SyntheticBase {
         "~ synthetic base line \(number) ~"
     }
 
+    /// True for a line `filler(line:)` wrote.
+    public static func isFiller(_ text: String) -> Bool {
+        text.hasPrefix("~ synthetic base line ") && text.hasSuffix(" ~")
+    }
+
     /// One synthetic base file per non-added, non-binary file in
     /// `patch`, in patch order. Throws when a file's hunks overlap or
     /// run backwards, or when two files claim the same base path —

@@ -380,6 +380,45 @@ final class ApplyEngineTests: XCTestCase {
 
 final class DisplayLineTests: XCTestCase {
 
+    // MARK: - Collapsing synthetic filler (issue #12)
+
+    func testEachFillerRunBecomesOneUnnumberedMarker() {
+        let lines = [
+            DisplayLine(kind: .context, baseLine: 1, postLine: 1, text: SyntheticBase.filler(line: 1)),
+            DisplayLine(kind: .context, baseLine: 2, postLine: 2, text: SyntheticBase.filler(line: 2)),
+            DisplayLine(kind: .context, baseLine: 3, postLine: 3, text: "func real() {"),
+            DisplayLine(kind: .added, baseLine: nil, postLine: 4, text: "    new()"),
+            DisplayLine(kind: .context, baseLine: 4, postLine: 5, text: SyntheticBase.filler(line: 4)),
+        ]
+        let out = lines.collapsingSyntheticFiller { "\($0) omitted" }
+        XCTAssertEqual(out.map(\.text), ["2 omitted", "func real() {", "    new()", "1 omitted"])
+        XCTAssertNil(out[0].baseLine)
+        XCTAssertNil(out[0].postLine)
+        XCTAssertEqual(out[1].postLine, 3, "real lines keep their numbers")
+        XCTAssertEqual(out[2].postLine, 4)
+    }
+
+    func testRealLinesThatMentionFillerWordsStay() {
+        XCTAssertFalse(SyntheticBase.isFiller("// ~ synthetic base line 3 ~ is how D4 fills gaps"))
+        XCTAssertTrue(SyntheticBase.isFiller(SyntheticBase.filler(line: 12)))
+    }
+
+    /// The four kettle patches: every filler line goes, and every real
+    /// line of each file survives in order with its numbers.
+    func testCollapsingAFixtureKeepsEveryRealLine() throws {
+        let (_, applied) = try ApplyEngineTests.apply(fixture: "kettle-1.patch")
+        var collapsedAny = false
+        for file in applied.files {
+            let lines = file.displayLines()
+            let out = lines.collapsingSyntheticFiller { "\($0)" }
+            XCTAssertFalse(out.contains { SyntheticBase.isFiller($0.text) }, file.path)
+            let real = lines.filter { !SyntheticBase.isFiller($0.text) }
+            XCTAssertEqual(out.filter { $0.baseLine != nil || $0.postLine != nil }, real, file.path)
+            if out.count < lines.count { collapsedAny = true }
+        }
+        XCTAssertTrue(collapsedAny)
+    }
+
     private func applied(_ patchText: String, base: String, path: String = "f.txt") throws -> AppliedFile {
         let patch = try UnifiedDiffParser.parse(patchText)
         return ApplyEngine.apply(patch, to: InMemoryBase(texts: [path: base])).files[0]

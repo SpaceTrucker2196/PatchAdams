@@ -440,14 +440,23 @@ final class SessionController {
         if file.status.isFailure {
             lines = Self.rawHunkLines(file.change)
         } else if let golden, let rendering = goldenRendering(golden: golden, column: column, path: path, file: file) {
-            lines = rendering.lines
+            lines = collapsingFiller(rendering.lines)
             if lines.count > Self.reducedModeThreshold { lines = Self.reduced(lines) }
         } else {
-            lines = file.displayLines(includeRemoved: showRemovedLines)
+            lines = collapsingFiller(file.displayLines(includeRemoved: showRemovedLines))
             if lines.count > Self.reducedModeThreshold { lines = Self.reduced(lines) }
         }
         displayCache[key] = lines
         return lines
+    }
+
+    /// On a base rebuilt from the patches (D4), each run of filler lines
+    /// shows as one "N lines omitted" marker (issue #12).
+    private func collapsingFiller(_ lines: [DisplayLine]) -> [DisplayLine] {
+        guard case .inMemory? = base?.origin else { return lines }
+        return lines.collapsingSyntheticFiller { count in
+            "··· " + String(localized: "\(count) lines omitted: no patch shows them") + " ···"
+        }
     }
 
     /// `column` against the golden column's post text (FR-21), cached
