@@ -198,7 +198,7 @@ final class SessionController {
     var baseDescription: String { base?.origin.description ?? String(localized: "no base") }
 
     var sessionTitle: String {
-        guard base != nil || !columns.isEmpty else { return String(localized: "Patch Adam") }
+        guard base != nil || !columns.isEmpty else { return String(localized: "Patch Adams") }
         return "\(baseDescription) — \(columns.count) " + String(localized: "patches")
     }
 

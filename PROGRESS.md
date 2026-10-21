@@ -1,4 +1,4 @@
-# PatchAdam — progress
+# Patch Adams — progress
 
 In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a

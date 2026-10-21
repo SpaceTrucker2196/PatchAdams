@@ -2,7 +2,7 @@
 import PackageDescription
 
 // PatchAdam engines. Every target here is UI-free and testable with
-// `swift test`; the macOS app (project.yml → PatchAdam.xcodeproj) is a
+// `swift test`; the macOS app (project.yml → PatchAdams.xcodeproj) is a
 // thin shell over these products.
 //
 // Dependency rules (docs/spec.md "Packages"; enforced by this manifest):

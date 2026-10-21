@@ -1,4 +1,4 @@
-# PatchAdam — roadmap
+# Patch Adams — roadmap
 
 Forward direction as sized milestones. Sizes: S ≤ 1 session,
 M = 1–2, L = 2–4. Each phase is gated by its checklist passing on
@@ -24,7 +24,7 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
   file names, request panel. 2026-10-14.
   - [x] Open a 4-patch session and read every touched file in every
     column without leaving the window. (kettle-1…18 on a merged
-    synthetic base; `PatchAdam --demo`.)
+    synthetic base; `PatchAdams --demo`.)
   - [x] Copy a reference from a selection and get `filename
     Lstart:Lend` with the correct post-patch lines. (`--select A:10-20`
     → `brew_task.go L10:L17` on the pasteboard.)

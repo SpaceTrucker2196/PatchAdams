@@ -1,8 +1,8 @@
-# xcodegen spec for the Patch Adam macOS app. Run `xcodegen generate`
-# (or `make generate`) to produce PatchAdam.xcodeproj. The .xcodeproj
+# xcodegen spec for the Patch Adams macOS app. Run `xcodegen generate`
+# (or `make generate`) to produce PatchAdams.xcodeproj. The .xcodeproj
 # is gitignored — this YAML is the authoritative project definition.
 
-name: PatchAdam
+name: PatchAdams
 
 options:
   bundleIdPrefix: io.river.patchadam
@@ -28,7 +28,7 @@ packages:
     path: .
 
 targets:
-  PatchAdam:
+  PatchAdams:
     type: application
     platform: macOS
     sources:
@@ -39,26 +39,26 @@ targets:
     # This forecloses App Store distribution; the spec proposes direct,
     # notarized distribution (open question, DECISIONS.md D2).
     entitlements:
-      path: App/PatchAdam.entitlements
+      path: App/PatchAdams.entitlements
       properties:
         com.apple.security.app-sandbox: false
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Patch Adam
+        CFBundleDisplayName: Patch Adams
         LSApplicationCategoryType: public.app-category.developer-tools
         ITSAppUsesNonExemptEncryption: false
         LSMinimumSystemVersion: "14.0"
         # The .patchadam session package (spec "Persistence").
         CFBundleDocumentTypes:
-          - CFBundleTypeName: Patch Adam Session
+          - CFBundleTypeName: Patch Adams Session
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
             LSTypeIsPackage: true
             LSItemContentTypes: [io.river.patchadam.session]
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: io.river.patchadam.session
-            UTTypeDescription: Patch Adam Session
+            UTTypeDescription: Patch Adams Session
             UTTypeConformsTo: [com.apple.package]
             UTTypeTagSpecification:
               public.filename-extension: [patchadam]
@@ -82,10 +82,10 @@ targets:
         product: SessionModel
 
 schemes:
-  PatchAdam:
+  PatchAdams:
     build:
       targets:
-        PatchAdam: all
+        PatchAdams: all
     run:
       config: Debug
     test:

@@ -13,7 +13,7 @@ struct WelcomeView: View {
         VStack(spacing: 18) {
             Image(systemName: "rectangle.split.3x1")
                 .font(.system(size: 44)).foregroundStyle(.secondary)
-            Text(String(localized: "Patch Adam")).font(.largeTitle).bold()
+            Text(String(localized: "Patch Adams")).font(.largeTitle).bold()
             Text(String(localized: "Two to four patches against one base, side by side."))
                 .foregroundStyle(.secondary)
 

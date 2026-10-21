@@ -5,12 +5,12 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Patch Adam</string>
+	<string>Patch Adams</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Patch Adam Session</string>
+			<string>Patch Adams Session</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -51,7 +51,7 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Patch Adam Session</string>
+			<string>Patch Adams Session</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.river.patchadam.session</string>
 			<key>UTTypeTagSpecification</key>

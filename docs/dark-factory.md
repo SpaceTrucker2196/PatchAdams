@@ -1,4 +1,4 @@
-# PatchAdam — dark factory
+# Patch Adams — dark factory
 
 This repo runs as a **dark factory**: the mission, the conventions,
 the tests, and the autonomy boundary are all in-tree, so an agent can

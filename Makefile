@@ -1,11 +1,11 @@
-# PatchAdam — factory targets. See FACTORY.md for the runbook.
+# Patch Adams — factory targets. See FACTORY.md for the runbook.
 
 XCODEGEN   := xcodegen
 SWIFT      := swift
 XCODEBUILD := xcodebuild
 
-PROJECT := PatchAdam.xcodeproj
-SCHEME  := PatchAdam
+PROJECT := PatchAdams.xcodeproj
+SCHEME  := PatchAdams
 DEST    := platform=macOS
 
 .PHONY: all generate build test harness bases audit clean release dmg notarize
@@ -56,8 +56,8 @@ audit:
 SIGN    ?= -
 VERSION := $(shell sed -n 's/.*MARKETING_VERSION: "\(.*\)"/\1/p' project.yml)
 RELEASE := .build/Release
-APP     := $(RELEASE)/PatchAdam.app
-DMG     := .build/PatchAdam-$(VERSION).dmg
+APP     := $(RELEASE)/PatchAdams.app
+DMG     := .build/PatchAdams-$(VERSION).dmg
 # Notarization credentials: the App Store Connect API key on this box
 # (see ~/projects/skill-fastlane-appstore/reference/credentials.md).
 NOTARY_KEY_ID ?= 6SXNN2PVAB
@@ -72,7 +72,7 @@ release: generate
 	  CODE_SIGN_IDENTITY='$(SIGN)' CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=U3Z59VXPUB \
 	  OTHER_CODE_SIGN_FLAGS=--timestamp build
 	mkdir -p $(RELEASE)
-	cp -R .build/DerivedData/Build/Products/Release/PatchAdam.app $(APP)
+	cp -R .build/DerivedData/Build/Products/Release/PatchAdams.app $(APP)
 	codesign --verify --deep --strict $(APP)
 	@echo "release: $(APP) signed as '$(SIGN)'"
 
@@ -82,7 +82,7 @@ dmg: release
 	mkdir -p $(RELEASE)/dmg
 	cp -R $(APP) $(RELEASE)/dmg/
 	ln -s /Applications $(RELEASE)/dmg/Applications
-	hdiutil create -volname "Patch Adam $(VERSION)" -srcfolder $(RELEASE)/dmg -ov -format UDZO $(DMG)
+	hdiutil create -volname "Patch Adams $(VERSION)" -srcfolder $(RELEASE)/dmg -ov -format UDZO $(DMG)
 	@if [ '$(SIGN)' != '-' ]; then codesign --sign '$(SIGN)' --timestamp $(DMG); fi
 	@echo "dmg: $(DMG)"
 

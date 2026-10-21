@@ -1,12 +1,12 @@
-# Patch Adam: Multi-Patch Review App for macOS
+# Patch Adams: Multi-Patch Review App for macOS
 
 Oct 14, 2026 · @Jeff Kunzelman
 
 ## Purpose and scope
 
-Patch Adam is a native macOS app that shows two to four patches against one code base side by side, so a reviewer can find the best patch for a pull request and record why.
+Patch Adams is a native macOS app that shows two to four patches against one code base side by side, so a reviewer can find the best patch for a pull request and record why.
 
-The current tool is a web page with one tab per implementation. The reviewer flips between tabs, holds the other patches in memory, and counts line numbers from hunk headers by hand. Patch Adam replaces that with parallel columns, a shared file tree, selection-driven cross-patch diffs, a golden-patch mode, and a findings log that exports with file and line references.
+The current tool is a web page with one tab per implementation. The reviewer flips between tabs, holds the other patches in memory, and counts line numbers from hunk headers by hand. Patch Adams replaces that with parallel columns, a shared file tree, selection-driven cross-patch diffs, a golden-patch mode, and a findings log that exports with file and line references.
 
 **In scope**
 
@@ -240,7 +240,7 @@ The shell never calls an engine directly. The controller owns the session state,
 | `DiffEngine` | Line diff and token diff between any two texts. Used for base-vs-patch, golden-vs-patch, and the comparison panel. | none |
 | `AlignmentEngine` | Locate a region from one column in another column. Returns an anchor with status and confidence. | `ApplyEngine`, `DiffEngine` |
 | `SessionModel` | `Session`, `Finding`, `Ranking`, `Pin`, `ManualAnchor`; Codable; export to Markdown and JSON. | `PatchModel` |
-| `PatchAdamApp` | SwiftUI shell, AppKit column views, view models. | all of the above |
+| `PatchAdamsApp` | SwiftUI shell, AppKit column views, view models. | all of the above |
 
 **Alignment algorithm**
 

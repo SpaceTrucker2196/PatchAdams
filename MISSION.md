@@ -1,8 +1,8 @@
-# PatchAdam — mission
+# Patch Adams — mission
 
 ## What this is
 
-Patch Adam is a native macOS app for one reviewer who must compare two
+Patch Adams is a native macOS app for one reviewer who must compare two
 to four candidate patches against the same code base and pick the
 best one for a pull request, with a written record of why. It shows
 the patches in parallel columns aligned by file and hunk, locates the

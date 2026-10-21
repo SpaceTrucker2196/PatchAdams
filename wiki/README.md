@@ -1,4 +1,4 @@
-# PatchAdam: the knowledge base
+# Patch Adams: the knowledge base
 
 Everything this project claims, with its sources, in one place. Research accumulates here as it happens: a fetched paper, a licence, a design decision and its evidence. It does not stay in chat scrollback that ends with the session.
 
@@ -15,7 +15,7 @@ This wiki is published as a GitHub Pages site by `.github/workflows/pages.yml`. 
 
 | Page | Holds |
 |---|---|
-| [Patch Adam spec](https://github.com/SpaceTrucker2196/PatchAdam/blob/main/docs/spec.md) | The product spec: purpose, concepts, FR-1 to FR-35, architecture, four delivery phases |
+| [Patch Adams spec](https://github.com/SpaceTrucker2196/PatchAdams/blob/main/docs/spec.md) | The product spec: purpose, concepts, FR-1 to FR-35, architecture, four delivery phases |
 | [History of the dark factory method](history/index.html) | How the method developed, January to October 2026, in six eras, with a source for each claim |
 | [Timeline](history/timeline.html) | Dated external events, template milestones, and every blog order |
 | [The autonomy levels](method/five-levels.html) | Shapiro's five levels and River's driving-style levels |

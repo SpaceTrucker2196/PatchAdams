@@ -1,4 +1,4 @@
-# PatchAdam — decisions and refusals
+# Patch Adams — decisions and refusals
 
 Append-only. One row per decision that would otherwise be re-argued
 from scratch in six weeks, and a section below carrying the reasoning.

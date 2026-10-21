@@ -4,7 +4,7 @@ import BaseLoader
 import ApplyEngine
 import DiffEngine
 
-// patchadam — command-line harness for the PatchAdam engines.
+// patchadam — command-line harness for the Patch Adams engines.
 // Exercises the packages on fixture patches without the app.
 //
 //   patchadam parse <patch>...     summarize each patch: files, kinds, +/- lines

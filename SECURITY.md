@@ -1,4 +1,4 @@
-# PatchAdam — security
+# Patch Adams — security
 
 ## Threat model
 

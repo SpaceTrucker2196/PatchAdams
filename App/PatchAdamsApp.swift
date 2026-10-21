@@ -1,7 +1,7 @@
 import SwiftUI
 import PatchModel
 
-// Patch Adam — the SwiftUI shell. One window, three zones: file tree,
+// Patch Adams — the SwiftUI shell. One window, three zones: file tree,
 // 2 to 4 patch columns with a comparison panel beneath, findings
 // sidebar (docs/spec.md, "User interface"). Phase 2: tree, columns,
 // gutters, scroll lock, request panel. Phase 3 adds comparison and
@@ -12,7 +12,7 @@ import PatchModel
 // "Technical architecture").
 
 @main
-struct PatchAdamApp: App {
+struct PatchAdamsApp: App {
     @State private var controller = SessionController()
 
     var body: some Scene {

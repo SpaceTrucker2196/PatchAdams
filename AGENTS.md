@@ -1,10 +1,10 @@
-# PatchAdam — agent instructions
+# Patch Adams — agent instructions
 
 Repo-local rules for any coding agent (Claude Code, Copilot, Codex).
 Build/infra runbook lives in `FACTORY.md`; charter in `MISSION.md`;
 the pattern and autonomy contract in `docs/dark-factory.md`.
 
-## What PatchAdam is
+## What Patch Adams is
 
 A native macOS app that shows two to four patches against one code
 base side by side, locates the same region across them, lets any
@@ -108,7 +108,7 @@ Targets and the rules between them (`Package.swift` enforces them):
   them.
 - **Strict concurrency, Swift 6 language mode.** Engine results are
   `Sendable` value types. UI state is `@Observable` on the main actor.
-- **`PatchAdam.xcodeproj` is generated.** Edit `project.yml`, run
+- **`PatchAdams.xcodeproj` is generated.** Edit `project.yml`, run
   `make generate`. Never commit the .xcodeproj.
 - **Parsers are strict.** A hunk whose body disagrees with its header
   is an error with a line number, never a guess — a lenient parser

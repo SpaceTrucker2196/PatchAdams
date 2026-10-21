@@ -1,10 +1,10 @@
-# PatchAdam — factory runbook
+# Patch Adams — factory runbook
 
 ## 0. TL;DR
 
 ```
-git clone git@github.com:SpaceTrucker2196/PatchAdam.git
-cd PatchAdam
+git clone git@github.com:SpaceTrucker2196/PatchAdams.git
+cd PatchAdams
 make test        # swift test --enable-code-coverage — must exit 0
 make build       # xcodegen + xcodebuild, warnings are errors
 make harness     # parse every fixture patch, apply each to its base
@@ -31,7 +31,7 @@ Fixtures/archives/       sample.tar / .tar.gz / .zip / -stored.zip for ArchiveBa
 App/                     SwiftUI shell: SessionController (state + Engines actor), ScrollSync,
                          Views/ (MainView, FileTreeView, ColumnView, CodeTextView + LineGutterView,
                          WelcomeView), DebugHooks (debug-only launch flags, see below)
-project.yml              xcodegen spec; PatchAdam.xcodeproj is generated, gitignored
+project.yml              xcodegen spec; PatchAdams.xcodeproj is generated, gitignored
 docs/spec.md             the product spec (Oct 14, 2026)
 docs/dark-factory.md     pattern + autonomy contract
 docs/converge.md         one production order → shipped
@@ -79,7 +79,7 @@ Dependency rules are in `Package.swift`'s header comment and
 `make release` builds the Release configuration with the hardened
 runtime and signs it with `SIGN` (default `-`, ad-hoc); `make dmg`
 wraps the app and an Applications link in a compressed DMG at
-`.build/PatchAdam-<MARKETING_VERSION>.dmg` (the version comes from
+`.build/PatchAdams-<MARKETING_VERSION>.dmg` (the version comes from
 `project.yml`); `make notarize` submits that DMG with the App Store
 Connect API key on this box (`NOTARY_KEY_ID`, `NOTARY_ISSUER` in the
 Makefile; the `.p8` lives in `~/.appstoreconnect/private_keys/`),
@@ -92,7 +92,7 @@ create; `make notarize` refuses an ad-hoc signature up front.
 `App/DebugHooks.swift` reads launch arguments so the factory can check
 the viewer gates and take screenshots without a hand on the mouse:
 
-    .build/DerivedData/Build/Products/Debug/PatchAdam.app/Contents/MacOS/PatchAdam \
+    .build/DerivedData/Build/Products/Debug/PatchAdams.app/Contents/MacOS/PatchAdams \
       --demo --file internal/service/brew_task.go \
       --select A:10-20 --scroll A:150 --stress --shot /tmp/patchadam.png
 
