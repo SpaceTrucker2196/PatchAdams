@@ -17,3 +17,4 @@ One row per production order run through the converge loop
 | 10 | 5f49766 | 2026-10-21 | 2 | 115 | yes | View menu zoom ⌘= ⌘− ⌘0 on the Settings size; duplicate Bigger item dropped; checked via the real menu items |
 | 9 | 1304d65 | 2026-10-21 | 3 | 131 | yes | syntax colour, SyntaxHighlight target (D9) + Spacetrucker palette; tests red on pass 1 (YAML overlap, generic fn), Go receiver fixed pass 3; 10k-line render 402 ms |
 | 11 | 2afdcc6 | 2026-10-21 | 2 | 131 | yes | app icon from owner artwork on the macOS grid; first check misread a thinned icns, asset catalog confirmed every size |
+| 12 | f568253 | 2026-10-21 | 2 | 134 | yes | collapse synthetic filler to one marker per run; test fixture name fixed on pass 2 |
