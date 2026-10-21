@@ -18,3 +18,4 @@ whole ledger: `ledger.py --energy-total`.
 | 73f7fc4 | 2026-10-15T00:19:25Z | claude-fable-5-1 | 2892 | 133177 | 18574963 | 256870 | 16.4689 | M4 review workflow: SessionModel, findings, ranking, export, sessions, blind mod |
 | d0ddf85 | 2026-10-19T02:50:43Z | claude-fable-5-1,claude-opus-5-5 | 1288 | 49422 | 10630719 | 1123179 | 14.8762 | M5 distribution: DMG/notarize targets, Settings, blind prompt, git detection (#5 |
 | cd03e98 | 2026-10-20T22:10:55Z | claude-opus-5-5 | 86 | 42200 | 10437346 | 1417797 | 14.2742 | Patch slot above each column: drop or click to load (#7, 0ca4d44) |
+| d2f0299 | 2026-10-21T17:02:49Z | claude-opus-5-5 | 316 | 175138 | 49652542 | 3333493 | 40.1025 | Rename to Patch Adams + README (#8), menu zoom (#10), Spacetrucker syntax colour |
