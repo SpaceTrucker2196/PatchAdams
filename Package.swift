@@ -12,6 +12,7 @@ import PackageDescription
 //   DiffEngine       → nothing
 //   AlignmentEngine  → ApplyEngine, DiffEngine
 //   SessionModel     → PatchModel
+//   SyntaxHighlight  → nothing (D9)
 // Add a target only when its first real code lands with tests.
 let package = Package(
     name: "PatchAdam",
@@ -23,6 +24,7 @@ let package = Package(
         .library(name: "DiffEngine", targets: ["DiffEngine"]),
         .library(name: "AlignmentEngine", targets: ["AlignmentEngine"]),
         .library(name: "SessionModel", targets: ["SessionModel"]),
+        .library(name: "SyntaxHighlight", targets: ["SyntaxHighlight"]),
         .executable(name: "patchadam", targets: ["patchadam"]),
     ],
     targets: [
@@ -48,6 +50,10 @@ let package = Package(
         // the .patchadam package; Markdown and JSON export (Phase 4).
         .target(name: "SessionModel", dependencies: ["PatchModel"]),
 
+        // Syntax colouring: a per-language scanner, tokens in UTF-16
+        // ranges. No imports beyond Foundation (D9).
+        .target(name: "SyntaxHighlight"),
+
         // Command-line harness: exercises the engines on fixture patches
         // without the app. `swift run patchadam parse <patch>...`
         .executableTarget(name: "patchadam", dependencies: ["PatchModel", "BaseLoader", "ApplyEngine", "DiffEngine", "AlignmentEngine", "SessionModel"]),
@@ -56,6 +62,7 @@ let package = Package(
         .testTarget(name: "BaseLoaderTests", dependencies: ["BaseLoader"]),
         .testTarget(name: "ApplyEngineTests", dependencies: ["ApplyEngine", "PatchModel", "BaseLoader"]),
         .testTarget(name: "DiffEngineTests", dependencies: ["DiffEngine", "ApplyEngine", "PatchModel", "BaseLoader"]),
+        .testTarget(name: "SyntaxHighlightTests", dependencies: ["SyntaxHighlight", "PatchModel"]),
         .testTarget(name: "SessionModelTests", dependencies: ["SessionModel", "PatchModel"]),
         .testTarget(name: "AlignmentEngineTests", dependencies: ["AlignmentEngine", "ApplyEngine", "DiffEngine", "PatchModel", "BaseLoader"]),
     ],

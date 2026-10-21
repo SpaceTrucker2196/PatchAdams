@@ -4,6 +4,28 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-21 — #8 rename, #10 zoom, #9 syntax colour
+
+**Done.**
+- **#8.** The app and repo are Patch Adams (`SpaceTrucker2196/PatchAdams`);
+  Xcode project, target, scheme and bundle are `PatchAdams`. README
+  rewritten as user documentation. Kept with the old spelling: the
+  `.patchadam` type, bundle id, Swift package, CLI, and — found the
+  hard way — the Swift module name. With module `PatchAdams` the app
+  launched and idled with no window on this Mac; bisected to the module
+  name (old binary fine from any path, renamed one from none, renamed
+  with `PRODUCT_MODULE_NAME: PatchAdam` fine). Fixed in 1774d95.
+- **#10.** View menu: Bigger ⌘=, Smaller ⌘−, Actual Size ⌘0, stepping
+  the Settings font size. `--zoom N` fires the real menu items.
+- **#9.** `SyntaxHighlight` target (D9) and the Spacetrucker palette.
+  16 tests, 131 total. Checked on screen in a Go and a Rust file.
+
+**Open, for the owner.** The local folder is still `~/projects/PatchAdam`:
+renaming it under a running session breaks ledger attribution, so it
+is the owner's move between sessions. The copy of the app opened for
+the owner on 2026-10-21 is the pre-rename build; quit and reopen to get
+the new one.
+
 ## 2026-10-20 — #7: a patch slot above every column
 
 **Done.** A dashed slot sits above each column header: drop a patch

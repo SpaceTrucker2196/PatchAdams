@@ -3,6 +3,7 @@ import AppKit
 import ApplyEngine
 import AlignmentEngine
 import SessionModel
+import SyntaxHighlight
 
 /// A run of display lines to colour: a located region, a pin, or the
 /// spot an absent region would occupy.
@@ -20,6 +21,8 @@ struct LineHighlight: Hashable {
 struct CodeTextView: NSViewRepresentable {
     let columnID: UUID
     let lines: [DisplayLine]
+    /// For syntax colour (issue #9); part of what `contentKey` covers.
+    var language: Language = .plain
     /// Changes whenever `lines` should be re-set on the text storage.
     let contentKey: String
     let scrollRequest: ScrollRequest?
@@ -52,6 +55,8 @@ struct CodeTextView: NSViewRepresentable {
         textView.font = CodeStyle.font
         textView.typingAttributes = [.font: CodeStyle.font]
         textView.textContainerInset = NSSize(width: 0, height: 4)
+        textView.drawsBackground = true
+        textView.backgroundColor = SpacetruckerPalette.codeBackground
         textView.delegate = context.coordinator
         textView.onFocus = { [weak controller] in controller?.focusedColumnID = context.coordinator.columnID }
 
@@ -65,6 +70,7 @@ struct CodeTextView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        scrollView.backgroundColor = SpacetruckerPalette.codeBackground
         scrollView.automaticallyAdjustsContentInsets = false
         scrollView.contentInsets = NSEdgeInsetsZero
         let gutter = LineGutterView(scrollView: scrollView, textView: textView)
@@ -80,6 +86,7 @@ struct CodeTextView: NSViewRepresentable {
         let coordinator = context.coordinator
         if coordinator.contentKey != contentKey {
             coordinator.contentKey = contentKey
+            coordinator.language = language
             coordinator.setLines(lines)
             scrollView.contentView.scroll(to: .zero)
             scrollView.reflectScrolledClipView(scrollView.contentView)
@@ -110,6 +117,7 @@ struct CodeTextView: NSViewRepresentable {
         weak var textView: NSTextView?
         weak var gutter: LineGutterView?
         var contentKey = ""
+        var language: Language = .plain
         var lastScrollRequest: ScrollRequest?
         var highlights: [LineHighlight] = []
         /// Character offset where each display line starts.
@@ -125,7 +133,7 @@ struct CodeTextView: NSViewRepresentable {
         func setLines(_ newLines: [DisplayLine]) {
             lines = newLines
             guard let textView, let storage = textView.textStorage else { return }
-            let (attributed, starts) = CodeStyle.render(newLines)
+            let (attributed, starts) = CodeStyle.render(newLines, language: language)
             lineStarts = starts
             storage.beginEditing()
             storage.setAttributedString(attributed)
@@ -291,12 +299,17 @@ enum CodeStyle {
     }
 
     /// The attributed text and each line's start offset (UTF-16).
-    static func render(_ lines: [DisplayLine]) -> (NSAttributedString, [Int]) {
+    /// The attributed text and each line's start offset (UTF-16). Diff
+    /// colour is the background, syntax colour the foreground (issue #9),
+    /// so neither hides the other; removed lines keep their syntax
+    /// colour, dimmed.
+    static func render(_ lines: [DisplayLine], language: Language = .plain) -> (NSAttributedString, [Int]) {
         let out = NSMutableAttributedString()
         var starts: [Int] = []
         starts.reserveCapacity(lines.count)
-        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.textColor]
-        let added: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.textColor, .backgroundColor: addedBackground]
+        let plain = SpacetruckerPalette.plainText
+        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: plain]
+        let added: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: plain, .backgroundColor: addedBackground]
         let removed: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.secondaryLabelColor, .backgroundColor: removedBackground, .strikethroughStyle: 0]
         let elided: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: elidedForeground]
         var offset = 0
@@ -311,6 +324,18 @@ enum CodeStyle {
             }
             out.append(NSAttributedString(string: text, attributes: attrs))
             offset += text.utf16.count
+        }
+        guard language != .plain else { return (out, starts) }
+        var state = ScanState.normal
+        for (i, line) in lines.enumerated() {
+            let isElided = line.kind == .context && line.baseLine == nil && line.postLine == nil
+            if isElided { state = .normal; continue }
+            let dim = line.kind == .removed
+            for token in SyntaxHighlighter.tokens(line.text, language: language, state: &state) {
+                let color = SpacetruckerPalette.color(token.kind)
+                out.addAttribute(.foregroundColor, value: dim ? color.withAlphaComponent(0.6) : color,
+                                 range: NSRange(location: starts[i] + token.range.lowerBound, length: token.range.count))
+            }
         }
         return (out, starts)
     }

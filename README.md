@@ -173,6 +173,7 @@ the network. Nothing you load leaves the machine.
 | ⌘F | Search all columns |
 | ⌘P | Pin the selection |
 | ⌘L | Scroll lock |
+| ⌘= / ⌘− / ⌘0 | Bigger / smaller / actual size code text |
 | ⌘R | Request panel |
 | ⌘⌥B | Blind mode |
 | ⇧⌘C | Copy reference |
@@ -186,7 +187,16 @@ the network. Nothing you load leaves the machine.
 
 ⌘, opens Settings: the code font (any fixed-pitch family) and size
 (9–24 pt; default system monospace at 12 pt), and whether to ask about
-blind mode on a new session.
+blind mode on a new session. The View menu zooms the same size:
+Bigger (⌘=), Smaller (⌘−), Actual Size (⌘0).
+
+Code is coloured by language, picked from the file extension (Go, Rust,
+Python, Swift, Zig, JavaScript and TypeScript, C and C++, shell, YAML,
+TOML, JSON, Markdown, CSS). The colours are the Spacetrucker Galactic
+palette: neon magenta keywords, cyan types, phosphor-green function
+names, peach strings, sunset-orange numbers and steel-blue comments, on
+deep Prussian blue in dark mode, and darker shades of the same hues in
+light mode. The added and removed backgrounds stay on top.
 
 ## Build from source
 
@@ -235,6 +245,7 @@ Sources/
   DiffEngine/        Myers and patience line diff, token diff
   AlignmentEngine/   locate a region in another column; golden rendering
   SessionModel/      findings, ranking, session package, Markdown and JSON export
+  SyntaxHighlight/   per-language token scanner for syntax colour
   patchadam/         command-line harness
 Tests/               one XCTest target per engine
 Fixtures/patches/    the 19 fixture patches; Fixtures/bases/ their rebuilt bases

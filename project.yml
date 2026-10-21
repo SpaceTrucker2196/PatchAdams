@@ -84,6 +84,8 @@ targets:
         product: AlignmentEngine
       - package: PatchAdam
         product: SessionModel
+      - package: PatchAdam
+        product: SyntaxHighlight
 
 schemes:
   PatchAdams:

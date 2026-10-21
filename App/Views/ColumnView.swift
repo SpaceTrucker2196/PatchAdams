@@ -2,6 +2,7 @@ import SwiftUI
 import ApplyEngine
 import AlignmentEngine
 import SessionModel
+import SyntaxHighlight
 
 /// One patch column: header with label *and* patch file name (FR-4),
 /// then the code view for the selected file.
@@ -26,7 +27,7 @@ struct ColumnView: View {
             Divider()
             content
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(Color(nsColor: SpacetruckerPalette.codeBackground))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
                 .stroke(isFocused ? Color.accentColor : Color.clear, lineWidth: 2)
@@ -208,7 +209,7 @@ struct ColumnView: View {
                 if let anchor, anchor.status == .absent {
                     absentNotice(anchor, path: path)
                 }
-                CodeTextView(columnID: column.id, lines: lines,
+                CodeTextView(columnID: column.id, lines: lines, language: Language.forPath(path),
                              contentKey: "\(column.id)|\(path)|\(controller.showRemovedLines)|\(lines.count)|\(file?.status.label ?? "")|\(controller.goldenID?.uuidString ?? "")|\(fontName)@\(fontSize)",
                              scrollRequest: controller.scrollRequests[column.id],
                              highlights: highlights(path: path),

@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 import ApplyEngine
 import SessionModel
+import SyntaxHighlight
 
 /// Launch arguments for driving the real window from a shell, used by
 /// the factory to check the M2 gates and take screenshots:
@@ -190,7 +191,7 @@ enum DebugHooks {
             if args.contains("--stress") {
                 let lines = (1...10_000).map { DisplayLine(kind: $0 % 50 == 0 ? .added : .context, baseLine: $0, postLine: $0, text: "func stress\($0)() { return \($0) * 2 } // synthetic") }
                 let start = Date()
-                let (attributed, starts) = CodeStyle.render(lines)
+                let (attributed, starts) = CodeStyle.render(lines, language: .go)
                 let storage = NSTextStorage(attributedString: attributed)
                 let layout = NSLayoutManager()
                 storage.addLayoutManager(layout)

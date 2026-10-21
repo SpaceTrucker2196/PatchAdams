@@ -21,6 +21,7 @@ next agent will cheerfully rebuild them.
 | D6 | 2026-10-14 | Blind mode is off for a new session, with a one-time prompt; Settings can ask again | provisional | docs/spec.md open questions; issue #5 | — |
 | D7 | 2026-10-14 | One base per session; no two-base sessions | provisional | docs/spec.md open questions; `Session.base` is a single `BasePointer` | — |
 | D8 | 2026-10-14 | The Markdown export includes the request text, collapsed in a `<details>` block | provisional | docs/spec.md open questions; D5 | — |
+| D9 | 2026-10-21 | Syntax colour from a hand-written per-language scanner in its own target, `SyntaxHighlight`; colours from the Spacetrucker Galactic palette | adopted | issue #9; `SyntaxHighlightTests` | — |
 
 `status` is one of:
 
@@ -183,3 +184,28 @@ should not push the ranking off the first screen.
 
 **What would change this.** A review form that rejects HTML in
 Markdown. Then the request moves under a plain `## Request` heading.
+
+## D9 — a small scanner for syntax colour
+
+**Decision.** Syntax colour comes from `SyntaxHighlight`, a seventh
+engine target with no imports beyond Foundation. One scanner covers
+every language family through a table of keywords, types, constants,
+comment and string delimiters; it carries an open block comment or
+multi-line string from one line to the next. It classifies tokens, it
+does not parse. Colours are the owner's Spacetrucker Galactic palette
+(StatusGalactic-iOS `GalacticPalette.swift`): as-is on a deep Prussian
+code background in dark mode, darkened to 4.5:1 against white in light
+mode. Diff colour stays the background, syntax colour the foreground.
+
+**Why.** D1 rules out tree-sitter and other grammar packages. A wrong
+colour costs a reviewer nothing; a slow one costs scrolling, and the
+spec lets syntax colour lag a frame where diff colour may not. The
+scanner colours more than half of all fixture lines, keeps every token
+sorted and inside its line (tested over all 19 fixtures), and scans
+10,000 lines well under a second; a full 10,000-line render with colour
+measured 402 ms against 198 ms without.
+
+**What would change this.** A language the table cannot describe (a
+heredoc-heavy shell, say), or a reviewer finding the colour wrong often
+enough to mislead. Then a real grammar earns a look, as a new decision
+that supersedes this one.

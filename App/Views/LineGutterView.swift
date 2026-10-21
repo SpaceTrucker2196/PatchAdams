@@ -61,7 +61,7 @@ final class LineGutterView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.windowBackgroundColor.setFill()
+        SpacetruckerPalette.gutterBackground.setFill()
         bounds.fill()
         NSColor.separatorColor.setFill()
         NSRect(x: bounds.maxX - 1, y: 0, width: 1, height: bounds.height).fill()
