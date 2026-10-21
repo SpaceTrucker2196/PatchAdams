@@ -22,3 +22,4 @@ whole ledger: `ledger.py --energy-total`.
 | 43f2e6f | 2026-10-21T17:07:22Z | claude-opus-5-5 | 58 | 23278 | 11580392 | 41156 | 3.1111 | App icon from owner artwork (#11, 2afdcc6) |
 | fef93de | 2026-10-21T17:11:30Z | claude-opus-5-5 | 44 | 15797 | 9013699 | 27095 | 2.3356 | Welcome screen shows the app icon (#11 follow-up, fef93de) |
 | d948e62 | 2026-10-21T17:31:47Z | claude-opus-5-5 | 82 | 33729 | 17485113 | 46872 | 4.5469 | Dock icon fix (#11, 57c029b); collapse synthetic filler lines (#12, f568253) |
+| 0ec6d85 | 2026-10-21T17:56:19Z | claude-opus-5-5 | 240 | 199067 | 59908411 | 259887 | 18.0431 | Customer data purge: invented fixtures, history rewrite, repo private (#13, 697b |
