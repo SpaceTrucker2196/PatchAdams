@@ -4,6 +4,41 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-21 — #13: customer data out of the repo and its history
+
+**Done.**
+- The repo was **public**; it is private now (first step, before any
+  other change).
+- The fixture set came from real reviews: customer code. It is
+  replaced by invented fixtures written by
+  `tools/fixtures/make_fixtures.py` (D10). The demo session loads
+  kettle-1…4 and says the code is invented. Every gate rerun on the new
+  set; 134 tests green.
+- History rewritten with `git filter-repo`: the old fixture files are
+  gone from every commit, and review names are scrubbed from every file
+  and commit message. Force-pushed (lease on the old tip). The rewritten
+  tip is byte-identical to the tested tree. A search of all 40 commits
+  for every path, file name and folder name from the old patches finds
+  only generic words.
+- Issue bodies and comments scrubbed the same way (6 edited).
+- Local repo reset to the new history, reflog expired, objects pruned.
+  Scratch screenshots and logs holding review code deleted.
+
+**Owner actions left.**
+1. Ask GitHub Support to purge cached views and unreferenced objects
+   for SpaceTrucker2196/PatchAdams (old commits stay reachable by SHA
+   until GitHub garbage-collects them).
+2. GitHub keeps the edit history of the six edited issue texts; delete
+   those revisions in each one's edit history menu.
+3. Any other clone (another Mac, the cloud review sessions) still has
+   the old history: delete it and clone again.
+4. Confirm, and the agent deletes the one local backup bundle of the
+   old history (scratchpad, 3 MB).
+
+**Note for the ledger and metrics.** Every commit id changed. Rows in
+`LEDGER.md` and `METRICS.md` written before 2026-10-21 17:45Z name the
+old ids. The ledger window reads timestamps, so new rows are unaffected.
+
 ## 2026-10-21 — #11: the app icon
 
 **Done.** The owner's artwork (a clown doctor holding a page of + and −
