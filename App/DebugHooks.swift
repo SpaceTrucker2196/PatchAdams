@@ -22,6 +22,7 @@ import SyntaxHighlight
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
 ///   --replace B=/x.patch   put that patch in column B (issue #7); --add /x.patch adds one
+///   --dock-icon <png>      save the image the Dock shows
 ///   --shot-welcome <png>   draw the welcome view to a PNG
 ///   --state                log column order, golden, findings, pins, blind mapping
 ///   --stress               time rendering a 10,000-line synthetic file
@@ -36,10 +37,18 @@ enum DebugHooks {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
             return args[i + 1]
         }
-        guard args.contains("--demo") || args.contains("--stress") || value(after: "--shot") != nil || value(after: "--patches") != nil || value(after: "--open") != nil || value(after: "--shot-welcome") != nil else { return }
+        guard args.contains("--demo") || args.contains("--stress") || value(after: "--shot") != nil || value(after: "--patches") != nil || value(after: "--open") != nil || value(after: "--shot-welcome") != nil || value(after: "--dock-icon") != nil else { return }
 
         log("git: \(controller.gitVersion ?? "not found") · font \(CodeStyle.fontKey) · blind prompt shown \(UserDefaults.standard.bool(forKey: SessionController.blindPromptShownKey))")
         if let pkg = value(after: "--open") { controller.open(sessionURL: URL(fileURLWithPath: pkg)) }
+        if let file = value(after: "--dock-icon") {
+            // What the Dock shows (issue #11), as a PNG.
+            if let tiff = NSApp.applicationIconImage?.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+               let png = rep.representation(using: .png, properties: [:]) {
+                try? png.write(to: URL(fileURLWithPath: file))
+                log("dock icon written to \(file)")
+            }
+        }
         if let file = value(after: "--shot-welcome") {
             // The welcome view is not a text view, so the window self-render
             // comes back blank; draw it with SwiftUI's own renderer instead.

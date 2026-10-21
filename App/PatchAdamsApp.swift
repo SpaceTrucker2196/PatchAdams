@@ -13,6 +13,7 @@ import PatchModel
 
 @main
 struct PatchAdamsApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var controller = SessionController()
 
     var body: some Scene {
@@ -23,6 +24,15 @@ struct PatchAdamsApp: App {
         .windowResizability(.contentMinSize)
         .commands { SessionCommands(controller: controller) }
         Settings { SettingsView() }
+    }
+}
+
+/// Sets the Dock icon from the asset catalog at launch. Launched
+/// straight from its executable (as the factory and `make` do), the app
+/// skips Launch Services and the Dock shows a blank icon (issue #11).
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        if let icon = NSImage(named: "AppIcon") { NSApp.applicationIconImage = icon }
     }
 }
 
