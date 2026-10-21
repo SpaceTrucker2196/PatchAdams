@@ -1,0 +1,50 @@
+diff --git a/ledger/core.py b/ledger/core.py
+index 7a64692..ecf9b7f 100644
+--- a/ledger/core.py
++++ b/ledger/core.py
+@@ -10,3 +10,6 @@ class Ledger:
+ 
+     def total(self):
+         return sum(a for a, _ in self.entries)
++
++    def memos(self):
++        return [m for _, m in self.entries]
+diff --git a/ledger/legacy.py b/ledger/legacy.py
+deleted file mode 100644
+index 38d6c96..0000000
+--- a/ledger/legacy.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-"""Old import path, kept for one release."""
+-from ledger.core import Ledger  # noqa: F401
+diff --git a/pyproject.toml b/pyproject.toml
+index 3070c4c..2972593 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -3,4 +3,4 @@ name = "ledger"
+ version = "0.1.0"
+ 
+ [tool.pytest.ini_options]
+-testpaths = ["tests/billing"]
++testpaths = ["tests"]
+diff --git a/tests/billing/test_ledger.py b/tests/test_ledger.py
+similarity index 95%
+rename from tests/billing/test_ledger.py
+rename to tests/test_ledger.py
+index a72b39f..c4b6536 100644
+--- a/tests/billing/test_ledger.py
++++ b/tests/test_ledger.py
+@@ -1,11 +1,12 @@
+ """Tests for the ledger."""
+-import pytest
++import pytest  # noqa: F401
+ 
+ from ledger.core import Ledger
+ 
+ 
+ def test_entry_0():
+     ledger = Ledger()
++    assert ledger.total() == 0
+     ledger.add(0, "item 0")
+     assert ledger.total() == 0
+ 

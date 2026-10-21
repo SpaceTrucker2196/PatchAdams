@@ -1,0 +1,275 @@
+diff --git a/cmd/server/main.go b/cmd/server/main.go
+index 67c66ce..95c304a 100644
+--- a/cmd/server/main.go
++++ b/cmd/server/main.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func main() {
+ 	brews := repo.NewBrewRepository("kettle.db")
+-	queue := core.NewTaskQueue(4)
++	queue := core.NewTaskQueue(8)
+ 	logs := tasklog.NewManager("logs")
+ 	svc := service.NewBrewTaskService(brews, queue, logs)
+ 	srv := api.NewServer(svc)
+diff --git a/internal/api/dto/brew.go b/internal/api/dto/brew.go
+index b06943f..60a39c7 100644
+--- a/internal/api/dto/brew.go
++++ b/internal/api/dto/brew.go
+@@ -13,3 +13,16 @@ type AddBrewRequest struct {
+ func (r AddBrewRequest) Input() service.AddBrewTaskInput {
+ 	return service.AddBrewTaskInput{Name: r.Name, Blend: r.Blend, Kettle: r.Kettle, Shelf: r.Shelf}
+ }
++
++// AddBrewBatchRequest is the JSON body of POST /brews/batch.
++type AddBrewBatchRequest struct {
++	Brews []AddBrewRequest `json:"brews"`
++}
++
++func (r AddBrewBatchRequest) Inputs() []service.AddBrewTaskInput {
++	out := make([]service.AddBrewTaskInput, len(r.Brews))
++	for i, b := range r.Brews {
++		out[i] = b.Input()
++	}
++	return out
++}
+diff --git a/internal/api/handler/brew.go b/internal/api/handler/brew.go
+index 0f9b236..a93e88b 100644
+--- a/internal/api/handler/brew.go
++++ b/internal/api/handler/brew.go
+@@ -29,6 +29,21 @@ func (h *BrewHandler) Add(w http.ResponseWriter, r *http.Request) {
+ 	json.NewEncoder(w).Encode(brew)
+ }
+ 
++// AddBatch handles POST /brews/batch.
++func (h *BrewHandler) AddBatch(w http.ResponseWriter, r *http.Request) {
++	var req dto.AddBrewBatchRequest
++	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		return
++	}
++	brews, err := h.svc.AddBrewTasks(req.Inputs())
++	if err != nil {
++		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
++		return
++	}
++	json.NewEncoder(w).Encode(brews)
++}
++
+ // List handles GET /brews.
+ func (h *BrewHandler) List(w http.ResponseWriter, r *http.Request) {
+ 	brews, err := h.svc.ListBrews()
+diff --git a/internal/api/handler/brew_test.go b/internal/api/handler/brew_test.go
+index b765a5e..7821338 100644
+--- a/internal/api/handler/brew_test.go
++++ b/internal/api/handler/brew_test.go
+@@ -8,3 +8,10 @@ func TestAddRejectsBadJSON(t *testing.T) {
+ 		t.Fatalf("got %d", rec.Code)
+ 	}
+ }
++
++func TestAddBatchRejectsBadJSON1(t *testing.T) {
++	rec := doRequest(t, "POST", "/brews/batch", "[")
++	if rec.Code != 400 {
++		t.Fatalf("got %d", rec.Code)
++	}
++}
+diff --git a/internal/api/server.go b/internal/api/server.go
+index 3109a9c..7ab8d65 100644
+--- a/internal/api/server.go
++++ b/internal/api/server.go
+@@ -16,6 +16,7 @@ func NewServer(svc *service.BrewTaskService) *Server {
+ 	h := handler.NewBrewHandler(svc)
+ 	mux.HandleFunc("POST /brews", h.Add)
+ 	mux.HandleFunc("GET /brews", h.List)
++	mux.HandleFunc("POST /brews/batch", h.AddBatch)
+ 	return &Server{mux: mux}
+ }
+ 
+diff --git a/internal/core/queue.go b/internal/core/queue.go
+index 9af9121..1ea2e20 100644
+--- a/internal/core/queue.go
++++ b/internal/core/queue.go
+@@ -18,6 +18,13 @@ func (q *TaskQueue) Enqueue(id int64) {
+ 	q.pending = append(q.pending, id)
+ }
+ 
++// EnqueueMany adds brews in order under one lock.
++func (q *TaskQueue) EnqueueMany(ids []int64) {
++	q.mu.Lock()
++	defer q.mu.Unlock()
++	q.pending = append(q.pending, ids...)
++}
++
+ // Next removes and returns the first brew, or false when empty.
+ func (q *TaskQueue) Next() (int64, bool) {
+ 	q.mu.Lock()
+diff --git a/internal/core/queue_test.go b/internal/core/queue_test.go
+index 3215259..35fcb2b 100644
+--- a/internal/core/queue_test.go
++++ b/internal/core/queue_test.go
+@@ -10,3 +10,11 @@ func TestQueueIsFirstInFirstOut(t *testing.T) {
+ 		t.Fatalf("got %d", id)
+ 	}
+ }
++
++func TestEnqueueManyKeepsOrder1(t *testing.T) {
++	q := NewTaskQueue(1)
++	q.EnqueueMany([]int64{1, 2, 3})
++	if id, _ := q.Next(); id != 1 {
++		t.Fatalf("got %d", id)
++	}
++}
+diff --git a/internal/pathutil/pathutil.go b/internal/pathutil/pathutil.go
+index 0e26af2..3844a93 100644
+--- a/internal/pathutil/pathutil.go
++++ b/internal/pathutil/pathutil.go
+@@ -10,7 +10,8 @@ import (
+ func SanitizeName(name string) string {
+ 	name = strings.TrimSpace(name)
+ 	name = strings.ReplaceAll(name, "/", "-")
+-	return strings.ReplaceAll(name, "\\", "-")
++	name = strings.ReplaceAll(name, "\\", "-")
++	return strings.Trim(name, ".")
+ }
+ 
+ // NormalizeShelf cleans a shelf path and keeps it relative.
+diff --git a/internal/pathutil/pathutil_test.go b/internal/pathutil/pathutil_test.go
+index 667fec7..686e7eb 100644
+--- a/internal/pathutil/pathutil_test.go
++++ b/internal/pathutil/pathutil_test.go
+@@ -13,3 +13,9 @@ func TestNormalizeShelfRejectsEscapes(t *testing.T) {
+ 		t.Fatal("expected an error")
+ 	}
+ }
++
++func TestSanitizeNameCase1(t *testing.T) {
++	if got := SanitizeName(" x "); got != "x" {
++		t.Fatalf("got %q", got)
++	}
++}
+diff --git a/internal/service/brew_task.go b/internal/service/brew_task.go
+index c9bda8d..bd5c73f 100644
+--- a/internal/service/brew_task.go
++++ b/internal/service/brew_task.go
+@@ -16,6 +16,8 @@ type BrewTaskService struct {
+ 	repo  *repo.BrewRepository
+ 	queue *core.TaskQueue
+ 	logs  *tasklog.Manager
++	// pantryRoot resolves relative shelves.
++	pantryRoot func() string
+ }
+ 
+ // NewBrewTaskService creates a BrewTaskService.
+@@ -68,6 +70,45 @@ func (s *BrewTaskService) AddBrewTask(input AddBrewTaskInput) (*repo.Brew, error
+ 	return brew, nil
+ }
+ 
++// AddBrewTasks adds several brews at once. Every name is checked before
++// any brew is created, so a bad batch leaves nothing half done.
++func (s *BrewTaskService) AddBrewTasks(inputs []AddBrewTaskInput) ([]*repo.Brew, error) {
++	reserved := reserveNames(inputs)
++	for i, input := range inputs {
++		if _, err := normalizeInputShelf(input.Shelf); err != nil {
++			return nil, fmt.Errorf("brew %d: %w", i, err)
++		}
++	}
++	brews := make([]*repo.Brew, 0, len(inputs))
++	for i, input := range inputs {
++		input.Name = reserved[i]
++		brew, err := s.AddBrewTask(input)
++		if err != nil {
++			return nil, err
++		}
++		brews = append(brews, brew)
++	}
++	return brews, nil
++}
++
++// reserveNames gives every unnamed brew in a batch a distinct name.
++func reserveNames(inputs []AddBrewTaskInput) []string {
++	names := make([]string, len(inputs))
++	used := map[string]bool{}
++	for i, input := range inputs {
++		name := input.Name
++		if name == "" {
++			name = RandomName()
++		}
++		for used[name] {
++			name = name + "-" + RandomName()
++		}
++		used[name] = true
++		names[i] = name
++	}
++	return names
++}
++
+ // RunFill0 runs the fill step for one brew and records
+ // how long it took, so the dashboard can show slow kettles.
+ func (s *BrewTaskService) RunFill0(id int64) (time.Duration, error) {
+@@ -122,6 +163,7 @@ func (s *BrewTaskService) RunPour3(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "pour"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+@@ -182,6 +224,7 @@ func (s *BrewTaskService) RunWeigh7(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "weigh"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+@@ -242,6 +285,7 @@ func (s *BrewTaskService) RunStir11(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "stir"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/internal/service/brew_task_test.go b/internal/service/brew_task_test.go
+index 615cc71..44cc708 100644
+--- a/internal/service/brew_task_test.go
++++ b/internal/service/brew_task_test.go
+@@ -22,3 +22,25 @@ func TestAddBrewTaskRejectsDuplicates(t *testing.T) {
+ 		t.Fatal("expected an error")
+ 	}
+ }
++
++func TestAddBrewTasksGivesUnnamedBrewsDistinctNames(t *testing.T) {
++	s := newTestService(t)
++	brews, err := s.AddBrewTasks([]AddBrewTaskInput{{}, {}})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if brews[0].Name == brews[1].Name {
++		t.Fatal("names collide")
++	}
++}
++
++func TestAddBrewTasksLeavesNothingOnABadShelf(t *testing.T) {
++	s := newTestService(t)
++	bad := "../out"
++	if _, err := s.AddBrewTasks([]AddBrewTaskInput{{Name: "a"}, {Shelf: &bad}}); err == nil {
++		t.Fatal("expected an error")
++	}
++	if brews, _ := s.ListBrews(); len(brews) != 0 {
++		t.Fatal("half a batch was created")
++	}
++}
+diff --git a/internal/service/heater_test.go b/internal/service/heater_test.go
+index 292e509..7c4ef12 100644
+--- a/internal/service/heater_test.go
++++ b/internal/service/heater_test.go
+@@ -1195,7 +1195,7 @@ func TestHeaterPowerCase169(t *testing.T) {
+ func TestHeaterPowerCase170(t *testing.T) {
+ 	h := Heater{Watts: 2700, MaxTemp: 100}
+ 	if got := h.Power(70); got != 1890 {
+-		t.Fatalf("case 170: got %d", got)
++		t.Fatalf("case 170 (variant 1): got %d, want a lower power", got)
+ 	}
+ }
+ 

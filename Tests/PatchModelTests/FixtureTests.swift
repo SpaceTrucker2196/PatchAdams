@@ -17,25 +17,16 @@ final class FixtureTests: XCTestCase {
 
     /// file name → `diff --git` header count, measured with grep.
     static let expectedFileCounts: [String: Int] = [
-        "scaffold.patch": 4,
-        "old-fixture-2.patch": 3,
-        "old-fixture-3.patch": 11,
-        "old-fixture-4.patch": 13,
-        "old-fixture-5.patch": 13,
-        "old-fixture-6.patch": 9,
-        "old-fixture-7.patch": 4,
-        "old-fixture-8.patch": 23,
-        "lantern-1.patch": 8,
-        "lantern-2.patch": 8,
+        "kettle-1.patch": 12,
+        "kettle-2.patch": 11,
+        "kettle-3.patch": 12,
+        "kettle-4.patch": 13,
+        "lantern-1.patch": 9,
+        "lantern-2.patch": 7,
         "lantern-3.patch": 9,
-        "old-fixture-12.patch": 7,
-        "old-fixture-13.patch": 5,
-        "old-fixture-14.patch": 5,
-        "kettle-1.patch": 13,
-        "kettle-2.patch": 15,
-        "kettle-3.patch": 14,
-        "kettle-4.patch": 10,
-        "old-fixture-19.patch": 24,
+        "scaffold.patch": 7,
+        "rename.patch": 4,
+        "mail.patch": 6,
     ]
 
     func testEveryFixtureParses() throws {
@@ -58,11 +49,11 @@ final class FixtureTests: XCTestCase {
     }
 
     func testRenameWithSimilarityIndex() throws {
-        let patch = try UnifiedDiffParser.parse(contentsOf: Self.fixturesDir.appendingPathComponent("old-fixture-5.patch"))
+        let patch = try UnifiedDiffParser.parse(contentsOf: Self.fixturesDir.appendingPathComponent("rename.patch"))
         let rename = try XCTUnwrap(patch.files.first { $0.kind == .renamed })
         XCTAssertEqual(rename.oldPath, "tests/billing/test_ledger.py")
         XCTAssertEqual(rename.newPath, "tests/test_ledger.py")
-        XCTAssertEqual(rename.similarity, 93)
+        XCTAssertEqual(rename.similarity, 95)
         XCTAssertEqual(rename.fileName, "test_ledger.py")
         XCTAssertTrue(rename.isTest)
     }

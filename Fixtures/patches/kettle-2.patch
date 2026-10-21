@@ -1,0 +1,285 @@
+diff --git a/internal/api/dto/brew.go b/internal/api/dto/brew.go
+index b06943f..60a39c7 100644
+--- a/internal/api/dto/brew.go
++++ b/internal/api/dto/brew.go
+@@ -13,3 +13,16 @@ type AddBrewRequest struct {
+ func (r AddBrewRequest) Input() service.AddBrewTaskInput {
+ 	return service.AddBrewTaskInput{Name: r.Name, Blend: r.Blend, Kettle: r.Kettle, Shelf: r.Shelf}
+ }
++
++// AddBrewBatchRequest is the JSON body of POST /brews/batch.
++type AddBrewBatchRequest struct {
++	Brews []AddBrewRequest `json:"brews"`
++}
++
++func (r AddBrewBatchRequest) Inputs() []service.AddBrewTaskInput {
++	out := make([]service.AddBrewTaskInput, len(r.Brews))
++	for i, b := range r.Brews {
++		out[i] = b.Input()
++	}
++	return out
++}
+diff --git a/internal/api/handler/brew.go b/internal/api/handler/brew.go
+index 0f9b236..887580a 100644
+--- a/internal/api/handler/brew.go
++++ b/internal/api/handler/brew.go
+@@ -29,6 +29,21 @@ func (h *BrewHandler) Add(w http.ResponseWriter, r *http.Request) {
+ 	json.NewEncoder(w).Encode(brew)
+ }
+ 
++// AddBatch handles POST /brews/batch.
++func (h *BrewHandler) AddBatch(w http.ResponseWriter, r *http.Request) {
++	var req dto.AddBrewBatchRequest
++	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		return
++	}
++	brews, err := h.svc.AddBrewTasks(req.Inputs())
++	if err != nil {
++		http.Error(w, err.Error(), http.StatusConflict)
++		return
++	}
++	json.NewEncoder(w).Encode(brews)
++}
++
+ // List handles GET /brews.
+ func (h *BrewHandler) List(w http.ResponseWriter, r *http.Request) {
+ 	brews, err := h.svc.ListBrews()
+diff --git a/internal/api/handler/brew_test.go b/internal/api/handler/brew_test.go
+index b765a5e..24d088b 100644
+--- a/internal/api/handler/brew_test.go
++++ b/internal/api/handler/brew_test.go
+@@ -8,3 +8,10 @@ func TestAddRejectsBadJSON(t *testing.T) {
+ 		t.Fatalf("got %d", rec.Code)
+ 	}
+ }
++
++func TestAddBatchRejectsBadJSON2(t *testing.T) {
++	rec := doRequest(t, "POST", "/brews/batch", "[")
++	if rec.Code != 400 {
++		t.Fatalf("got %d", rec.Code)
++	}
++}
+diff --git a/internal/api/server.go b/internal/api/server.go
+index 3109a9c..7ab8d65 100644
+--- a/internal/api/server.go
++++ b/internal/api/server.go
+@@ -16,6 +16,7 @@ func NewServer(svc *service.BrewTaskService) *Server {
+ 	h := handler.NewBrewHandler(svc)
+ 	mux.HandleFunc("POST /brews", h.Add)
+ 	mux.HandleFunc("GET /brews", h.List)
++	mux.HandleFunc("POST /brews/batch", h.AddBatch)
+ 	return &Server{mux: mux}
+ }
+ 
+diff --git a/internal/core/queue.go b/internal/core/queue.go
+index 9af9121..28c0849 100644
+--- a/internal/core/queue.go
++++ b/internal/core/queue.go
+@@ -18,6 +18,13 @@ func (q *TaskQueue) Enqueue(id int64) {
+ 	q.pending = append(q.pending, id)
+ }
+ 
++// EnqueueMany adds brews in order.
++func (q *TaskQueue) EnqueueMany(ids []int64) {
++	for _, id := range ids {
++		q.Enqueue(id)
++	}
++}
++
+ // Next removes and returns the first brew, or false when empty.
+ func (q *TaskQueue) Next() (int64, bool) {
+ 	q.mu.Lock()
+diff --git a/internal/core/queue_test.go b/internal/core/queue_test.go
+index 3215259..9da2c8f 100644
+--- a/internal/core/queue_test.go
++++ b/internal/core/queue_test.go
+@@ -10,3 +10,11 @@ func TestQueueIsFirstInFirstOut(t *testing.T) {
+ 		t.Fatalf("got %d", id)
+ 	}
+ }
++
++func TestEnqueueManyKeepsOrder2(t *testing.T) {
++	q := NewTaskQueue(1)
++	q.EnqueueMany([]int64{1, 2, 3})
++	if id, _ := q.Next(); id != 1 {
++		t.Fatalf("got %d", id)
++	}
++}
+diff --git a/internal/service/brew_task.go b/internal/service/brew_task.go
+index c9bda8d..3a11b1c 100644
+--- a/internal/service/brew_task.go
++++ b/internal/service/brew_task.go
+@@ -68,6 +68,19 @@ func (s *BrewTaskService) AddBrewTask(input AddBrewTaskInput) (*repo.Brew, error
+ 	return brew, nil
+ }
+ 
++// AddBrewTasks adds several brews, one after another.
++func (s *BrewTaskService) AddBrewTasks(inputs []AddBrewTaskInput) ([]*repo.Brew, error) {
++	var brews []*repo.Brew
++	for _, input := range inputs {
++		brew, err := s.AddBrewTask(input)
++		if err != nil {
++			return brews, err
++		}
++		brews = append(brews, brew)
++	}
++	return brews, nil
++}
++
+ // RunFill0 runs the fill step for one brew and records
+ // how long it took, so the dashboard can show slow kettles.
+ func (s *BrewTaskService) RunFill0(id int64) (time.Duration, error) {
+@@ -107,6 +120,7 @@ func (s *BrewTaskService) RunSteep2(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "steep"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+@@ -167,6 +181,7 @@ func (s *BrewTaskService) RunCool6(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "cool"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+@@ -227,6 +242,7 @@ func (s *BrewTaskService) RunChill10(id int64) (time.Duration, error) {
+ 		return 0, err
+ 	}
+ 	brew.Step = "chill"
++	brew.UpdatedAt = time.Now()
+ 	if err := s.repo.Save(brew); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/internal/service/brew_task_test.go b/internal/service/brew_task_test.go
+index 615cc71..d485492 100644
+--- a/internal/service/brew_task_test.go
++++ b/internal/service/brew_task_test.go
+@@ -22,3 +22,11 @@ func TestAddBrewTaskRejectsDuplicates(t *testing.T) {
+ 		t.Fatal("expected an error")
+ 	}
+ }
++
++func TestAddBrewTasksAddsEach(t *testing.T) {
++	s := newTestService(t)
++	brews, err := s.AddBrewTasks([]AddBrewTaskInput{{Name: "a"}, {Name: "b"}})
++	if err != nil || len(brews) != 2 {
++		t.Fatal(err)
++	}
++}
+diff --git a/internal/service/heater.go b/internal/service/heater.go
+index 6e47839..1a0ecb7 100644
+--- a/internal/service/heater.go
++++ b/internal/service/heater.go
+@@ -102,3 +102,8 @@ func (s *Heater) HeaterDescale5(id int64) (time.Duration, error) {
+ 	}
+ 	return time.Since(start), nil
+ }
++
++// tempFor returns the brewing temperature for a kettle's blend.
++func tempFor(k *Kettle) int {
++	return blendTemps[k.Blend]
++}
+diff --git a/internal/service/heater_test.go b/internal/service/heater_test.go
+index 292e509..e424554 100644
+--- a/internal/service/heater_test.go
++++ b/internal/service/heater_test.go
+@@ -1335,7 +1335,7 @@ func TestHeaterPowerCase189(t *testing.T) {
+ func TestHeaterPowerCase190(t *testing.T) {
+ 	h := Heater{Watts: 2900, MaxTemp: 100}
+ 	if got := h.Power(90); got != 2610 {
+-		t.Fatalf("case 190: got %d", got)
++		t.Fatalf("case 190 (variant 2): got %d, want a lower power", got)
+ 	}
+ }
+ 
+diff --git a/internal/service/temperature_test.go b/internal/service/temperature_test.go
+new file mode 100644
+index 0000000..d1cbee2
+--- /dev/null
++++ b/internal/service/temperature_test.go
+@@ -0,0 +1,81 @@
++package service
++
++import "testing"
++
++var tempCases = []struct {
++	name string
++	fn   func(*Kettle) int
++}{
++	{"case 0", func(k *Kettle) int { return tempFor(k) + 0 }},
++	{"case 1", func(k *Kettle) int { return tempFor(k) + 1 }},
++	{"case 2", func(k *Kettle) int { return tempFor(k) + 2 }},
++	{"case 3", func(k *Kettle) int { return tempFor(k) + 3 }},
++	{"case 4", func(k *Kettle) int { return tempFor(k) + 4 }},
++	{"case 5", func(k *Kettle) int { return tempFor(k) + 5 }},
++	{"case 6", func(k *Kettle) int { return tempFor(k) + 6 }},
++	{"case 7", func(k *Kettle) int { return tempFor(k) + 7 }},
++	{"case 8", func(k *Kettle) int { return tempFor(k) + 8 }},
++	{"case 9", func(k *Kettle) int { return tempFor(k) + 9 }},
++	{"case 10", func(k *Kettle) int { return tempFor(k) + 10 }},
++	{"case 11", func(k *Kettle) int { return tempFor(k) + 11 }},
++	{"case 12", func(k *Kettle) int { return tempFor(k) + 12 }},
++	{"case 13", func(k *Kettle) int { return tempFor(k) + 13 }},
++	{"case 14", func(k *Kettle) int { return tempFor(k) + 14 }},
++	{"case 15", func(k *Kettle) int { return tempFor(k) + 15 }},
++	{"case 16", func(k *Kettle) int { return tempFor(k) + 16 }},
++	{"case 17", func(k *Kettle) int { return tempFor(k) + 17 }},
++	{"case 18", func(k *Kettle) int { return tempFor(k) + 18 }},
++	{"case 19", func(k *Kettle) int { return tempFor(k) + 19 }},
++	{"case 20", func(k *Kettle) int { return tempFor(k) + 20 }},
++	{"case 21", func(k *Kettle) int { return tempFor(k) + 21 }},
++	{"case 22", func(k *Kettle) int { return tempFor(k) + 22 }},
++	{"case 23", func(k *Kettle) int { return tempFor(k) + 23 }},
++	{"case 24", func(k *Kettle) int { return tempFor(k) + 24 }},
++	{"case 25", func(k *Kettle) int { return tempFor(k) + 25 }},
++	{"case 26", func(k *Kettle) int { return tempFor(k) + 26 }},
++	{"case 27", func(k *Kettle) int { return tempFor(k) + 27 }},
++	{"case 28", func(k *Kettle) int { return tempFor(k) + 28 }},
++	{"case 29", func(k *Kettle) int { return tempFor(k) + 29 }},
++	{"case 30", func(k *Kettle) int { return tempFor(k) + 30 }},
++	{"case 31", func(k *Kettle) int { return tempFor(k) + 31 }},
++	{"case 32", func(k *Kettle) int { return tempFor(k) + 32 }},
++	{"case 33", func(k *Kettle) int { return tempFor(k) + 33 }},
++	{"case 34", func(k *Kettle) int { return tempFor(k) + 34 }},
++	{"case 35", func(k *Kettle) int { return tempFor(k) + 35 }},
++	{"case 36", func(k *Kettle) int { return tempFor(k) + 36 }},
++	{"case 37", func(k *Kettle) int { return tempFor(k) + 37 }},
++	{"case 38", func(k *Kettle) int { return tempFor(k) + 38 }},
++	{"case 39", func(k *Kettle) int { return tempFor(k) + 39 }},
++	{"case 40", func(k *Kettle) int { return tempFor(k) + 40 }},
++	{"case 41", func(k *Kettle) int { return tempFor(k) + 41 }},
++	{"case 42", func(k *Kettle) int { return tempFor(k) + 42 }},
++	{"case 43", func(k *Kettle) int { return tempFor(k) + 43 }},
++	{"case 44", func(k *Kettle) int { return tempFor(k) + 44 }},
++	{"case 45", func(k *Kettle) int { return tempFor(k) + 45 }},
++	{"case 46", func(k *Kettle) int { return tempFor(k) + 46 }},
++	{"case 47", func(k *Kettle) int { return tempFor(k) + 47 }},
++	{"case 48", func(k *Kettle) int { return tempFor(k) + 48 }},
++	{"case 49", func(k *Kettle) int { return tempFor(k) + 49 }},
++	{"case 50", func(k *Kettle) int { return tempFor(k) + 50 }},
++	{"case 51", func(k *Kettle) int { return tempFor(k) + 51 }},
++	{"case 52", func(k *Kettle) int { return tempFor(k) + 52 }},
++	{"case 53", func(k *Kettle) int { return tempFor(k) + 53 }},
++	{"case 54", func(k *Kettle) int { return tempFor(k) + 54 }},
++	{"case 55", func(k *Kettle) int { return tempFor(k) + 55 }},
++	{"case 56", func(k *Kettle) int { return tempFor(k) + 56 }},
++	{"case 57", func(k *Kettle) int { return tempFor(k) + 57 }},
++	{"case 58", func(k *Kettle) int { return tempFor(k) + 58 }},
++	{"case 59", func(k *Kettle) int { return tempFor(k) + 59 }},
++	{"case 60", func(k *Kettle) int { return tempFor(k) + 60 }},
++	{"case 61", func(k *Kettle) int { return tempFor(k) + 61 }},
++	{"case 62", func(k *Kettle) int { return tempFor(k) + 62 }},
++	{"case 63", func(k *Kettle) int { return tempFor(k) + 63 }},
++}
++
++func TestTempCases(t *testing.T) {
++	for _, c := range tempCases {
++		if c.fn(&Kettle{Blend: "sencha"}) < 0 {
++			t.Fatal(c.name)
++		}
++	}
++}

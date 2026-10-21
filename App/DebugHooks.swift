@@ -65,8 +65,8 @@ enum DebugHooks {
 
         if args.contains("--demo") {
             let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            controller.openDemoSession(fixtures: (15...18).map { root.appendingPathComponent("Fixtures/patches/fixture-\($0).patch") },
-                                       request: "Demo: the four kettle patches (kettle-1 … kettle-4) against a base rebuilt from their hunks.")
+            controller.openDemoSession(fixtures: (1...4).map { root.appendingPathComponent("Fixtures/patches/kettle-\($0).patch") },
+                                       request: "Demo: add a batch endpoint to the kettle service. Four invented patches (kettle-1 … kettle-4), base rebuilt from their hunks. No real code.")
         }
         if let list = value(after: "--patches") {
             controller.openDemoSession(fixtures: list.split(separator: ",").map { URL(fileURLWithPath: String($0)) })

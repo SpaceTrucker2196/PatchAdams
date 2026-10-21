@@ -23,14 +23,15 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
   full-file rendering, dual gutters, scroll lock, labels with patch
   file names, request panel. 2026-10-14.
   - [x] Open a 4-patch session and read every touched file in every
-    column without leaving the window. (kettle-1…18 on a merged
+    column without leaving the window. (kettle-1…4 on a merged
     synthetic base; `PatchAdams --demo`.)
   - [x] Copy a reference from a selection and get `filename
     Lstart:Lend` with the correct post-patch lines. (`--select A:10-20`
-    → `brew_task.go L10:L17` on the pasteboard.)
+    → `brew_task.go L55:L72` on the pasteboard.)
   - [x] Scroll lock keeps the same function in view across columns
-    through a 2,000-line file. (6,037-line heater_test.go, two
-    columns with different line maps, both at base line 2927.)
+    through a 2,000-line file. (Passed 2026-10-14 on the first fixture
+    set, since replaced (#13); on the invented set all four columns land
+    on the same base line.)
   - [x] Each column header shows its patch file name; tab-mapping
     confusion is impossible.
 - [x] **M3** (L) — Phase 3, comparison: selection alignment, status
@@ -38,18 +39,18 @@ Phases and gates come from `docs/spec.md`, "Delivery plan".
   golden patch mode, cross-column search. 2026-10-14.
   - [x] Select the `strip_prefix("glow-")` block in the lantern patch
     that has it; marked `absent` in the other two with a link to their
-    nearest hunk in `main.rs`. (`--select C:854-856` on lantern-1…11:
-    A absent, nearest `main.rs L812:L871`; B absent, nearest
-    `main.rs L785:L844`.)
+    nearest hunk in `main.rs`. (`--select C:73-75` on lantern-1…3:
+    A absent, nearest `main.rs L435:L441`; B absent, nearest
+    `main.rs L437:L446`.)
   - [x] Select `fn glow_schema` in any lantern column; located as
-    `modified` or `exact` in the others. (`--select B:106-113`: A and
-    C `modified` 0.87 via identifier `glow_schema`.)
+    `modified` or `exact` in the others. (`--select A:5-12`: B
+    `modified` 0.83, C `modified` 0.94, both via identifier `glow_schema`.)
   - [x] Set each of four columns as golden in turn; every switch
-    renders in under 1 second. (`--golden A|B|C|D` on kettle-1…18:
-    64 column-files in 49–59 ms each.)
+    renders in under 1 second. (`--golden A|B|C|D` on kettle-1…4:
+    60 column-files in 24–30 ms each.)
   - [x] Search `tempFor(k)` across the four Go patches; grouped
     results with 60 or more hits in the patch that has them.
-    (old-fixture-8, 15, 16, 17: 63 hits in 13 files, all in column A.)
+    (kettle-1…4: 64 hits in one file, all in column B.)
 - [x] **M4** (L) — Phase 4, review workflow: findings with categories
   and severity, ranking with ties, Markdown and JSON export, session
   save/load, blind mode, manual anchor correction. 2026-10-14.

@@ -1,0 +1,152 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a7cc7be..8828424 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -9,3 +9,5 @@ jobs:
+         run: cargo build --release
+       - name: test
+         run: cargo test
++      - name: lint
++        run: cargo clippy -- -D warnings
+diff --git a/README.md b/README.md
+index 4ae7398..a857007 100644
+--- a/README.md
++++ b/README.md
+@@ -12,3 +12,5 @@ cargo build --release
+ 
+ - `basic`: ids and names only.
+ - `glow-i16`, `glow-i32`, `glow-i64`: a glow level per feature.
++
++Errors name the file that could not be created.
+diff --git a/crates/glowmap/src/main.rs b/crates/glowmap/src/main.rs
+index 65ff259..301b24f 100644
+--- a/crates/glowmap/src/main.rs
++++ b/crates/glowmap/src/main.rs
+@@ -20,16 +20,17 @@ fn canonical_schema() -> Arc<Schema> {
+     ]))
+ }
+ 
+-fn glow_schema(level_type: DataType) -> Arc<Schema> {
+-    Arc::new(Schema::new(vec![
++fn glow_schema(level: DataType) -> Arc<Schema> {
++    let fields = vec![
+         Field::new("id", DataType::Int32, false),
+-        Field::new("level", level_type, false),
++        Field::new("level", level, false),
+         Field::new("tint", DataType::Utf8, true),
+-    ]))
++    ];
++    Arc::new(Schema::new(fields))
+ }
+ 
+ /// Draws the tile pass for one tile and returns how many features it placed.
+-fn draw_tile_0(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_tile_0(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Tile) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Tile));
+@@ -39,7 +40,7 @@ fn draw_tile_0(tile: &Tile, out: &mut Canvas) -> usize {
+ }
+ 
+ /// Draws the layer pass for one tile and returns how many features it placed.
+-fn draw_layer_1(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_layer_1(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Layer) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Layer));
+@@ -49,7 +50,7 @@ fn draw_layer_1(tile: &Tile, out: &mut Canvas) -> usize {
+ }
+ 
+ /// Draws the palette pass for one tile and returns how many features it placed.
+-fn draw_palette_2(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_palette_2(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Palette) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Palette));
+@@ -229,7 +230,7 @@ fn draw_ferry_19(tile: &Tile, out: &mut Canvas) -> usize {
+ }
+ 
+ /// Draws the tile pass for one tile and returns how many features it placed.
+-fn draw_tile_20(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_tile_20(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Tile) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Tile));
+@@ -239,7 +240,7 @@ fn draw_tile_20(tile: &Tile, out: &mut Canvas) -> usize {
+ }
+ 
+ /// Draws the layer pass for one tile and returns how many features it placed.
+-fn draw_layer_21(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_layer_21(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Layer) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Layer));
+@@ -249,7 +250,7 @@ fn draw_layer_21(tile: &Tile, out: &mut Canvas) -> usize {
+ }
+ 
+ /// Draws the palette pass for one tile and returns how many features it placed.
+-fn draw_palette_22(tile: &Tile, out: &mut Canvas) -> usize {
++fn paint_palette_22(tile: &Tile, out: &mut Canvas) -> usize {
+     let mut placed = 0;
+     for feature in tile.features.iter().filter(|f| f.kind == Kind::Palette) {
+         out.stroke(&feature.path, Style::for_kind(Kind::Palette));
+@@ -436,7 +437,10 @@ fn run_case(case: &str, mode: OutputMode, out: &Path) -> std::io::Result<()> {
+         "glow-i64" => glow_schema(DataType::Int64),
+         other => panic!("unknown case {other}"),
+     };
+-    let file = File::create(out)?;
++    let file = File::create(out).map_err(|e| {
++        eprintln!("cannot create {}: {e}", out.display());
++        e
++    })?;
+     write_output(file, &schema, mode)
+ }
+ 
+diff --git a/tools/check_glow.sh b/tools/check_glow.sh
+index f093f97..cee46ed 100644
+--- a/tools/check_glow.sh
++++ b/tools/check_glow.sh
+@@ -1,6 +1,7 @@
+ #!/bin/sh
+ set -eu
+ # Write every case and check it with the Python validator.
++mkdir -p out
+ for case in basic glow-i16 glow-i32 glow-i64; do
+   cargo run -q -- "$case" "out/$case.glow"
+   python3 tools/py/glow_validate.py "out/$case.glow"
+diff --git a/tools/glow_fixture_writer.zig b/tools/glow_fixture_writer.zig
+index fa3c9fd..9b74c15 100644
+--- a/tools/glow_fixture_writer.zig
++++ b/tools/glow_fixture_writer.zig
+@@ -3,4 +3,5 @@ const std = @import("std");
+ pub fn main() !void {
+     const stdout = std.io.getStdOut().writer();
+     try stdout.print("{s}\n", .{"basic"});
++    try stdout.print("{s}\n", .{"glow-i32"});
+ }
+diff --git a/tools/py/glow_generate.py b/tools/py/glow_generate.py
+index 8d790c4..4c200fb 100644
+--- a/tools/py/glow_generate.py
++++ b/tools/py/glow_generate.py
+@@ -1,7 +1,7 @@
+ """Write a reference stream for every case."""
+ import sys
+ 
+-CASES = ["basic", "glow-i16", "glow-i32", "glow-i64"]
++CASES = ["basic", "glow-i16", "glow-i32", "glow-i64"]  # keep in step with main.rs
+ 
+ 
+ def generate(case: str) -> list[dict]:
+diff --git a/tools/py/glow_validate.py b/tools/py/glow_validate.py
+index cf42b30..ec6021a 100644
+--- a/tools/py/glow_validate.py
++++ b/tools/py/glow_validate.py
+@@ -5,6 +5,8 @@ import sys
+ def validate(path: str) -> bool:
+     with open(path, "rb") as f:
+         head = f.read(4)
++    if not head:
++        return False
+     return head == b"GLOW"
+ 
+ 

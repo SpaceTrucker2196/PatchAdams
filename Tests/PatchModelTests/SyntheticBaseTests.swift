@@ -239,7 +239,7 @@ final class MergedSyntheticBaseTests: XCTestCase {
     /// The four kettle patches (kettle-1…18) share one real base; the
     /// merged synthetic base must be consistent across all of them.
     func testTheFourGoPatchesShareOneMergedBase() throws {
-        let patches = try (15...18).map { try UnifiedDiffParser.parse(contentsOf: Self.fixturesDir.appendingPathComponent("fixture-\($0).patch")) }
+        let patches = try (1...4).map { try UnifiedDiffParser.parse(contentsOf: Self.fixturesDir.appendingPathComponent("kettle-\($0).patch")) }
         let merged = try SyntheticBase.merged(for: patches)
         let paths = Set(merged.map(\.path))
         XCTAssertGreaterThanOrEqual(merged.count, 10)

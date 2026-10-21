@@ -152,7 +152,7 @@ final class AlignmentEngineTests: XCTestCase {
         XCTAssertEqual(GoldenRenderer.render(reference: golden, text: other, includeRemoved: false).lines.count, 5)
     }
 
-    // MARK: - M3 gates on the lantern fixtures (lantern-1, -10, -11)
+    // MARK: - M3 gates on the lantern fixtures (lantern-1, -2, -3)
 
     struct LanternSession {
         var files: [String: AppliedFile]      // fixture name → main.rs
@@ -204,7 +204,7 @@ final class AlignmentEngineTests: XCTestCase {
     }
 
     func testGoldenSwitchOverTheFourGoPatchesIsFast() throws {
-        let names = (15...18).map { "fixture-\($0).patch" }
+        let names = (1...4).map { "kettle-\($0).patch" }
         let patches = try names.map { try UnifiedDiffParser.parse(contentsOf: Self.repoRoot.appendingPathComponent("Fixtures/patches/\($0)")) }
         let merged = try SyntheticBase.merged(for: patches)
         let base = InMemoryBase(label: "kettle", texts: Dictionary(uniqueKeysWithValues: merged.map { ($0.path, $0.text) }))
@@ -231,7 +231,7 @@ final class AlignmentEngineTests: XCTestCase {
     func testSearchingTempForAcrossTheGoPatchesFindsSixtyOrMoreHitsGroupedByFile() throws {
         // FR-19: the app's search walks every column's display lines per
         // file. The same walk, engine-side, over four Go patches.
-        let names = ["old-fixture-8.patch", "kettle-1.patch", "kettle-2.patch", "kettle-3.patch"]
+        let names = (1...4).map { "kettle-\($0).patch" }
         let patches = try names.map { try UnifiedDiffParser.parse(contentsOf: Self.repoRoot.appendingPathComponent("Fixtures/patches/\($0)")) }
         let merged = try SyntheticBase.merged(for: patches)
         let base = InMemoryBase(label: "go", texts: Dictionary(uniqueKeysWithValues: merged.map { ($0.path, $0.text) }))
@@ -246,7 +246,7 @@ final class AlignmentEngineTests: XCTestCase {
                 hitsPerPatch[name, default: 0] += hits
             }
         }
-        XCTAssertGreaterThanOrEqual(hitsPerPatch["old-fixture-8.patch"] ?? 0, 60, "\(hitsPerPatch)")
+        XCTAssertGreaterThanOrEqual(hitsPerPatch["kettle-2.patch"] ?? 0, 60, "\(hitsPerPatch)")
         XCTAssertEqual(hitsPerPatch.filter { $0.value > 0 }.count, 1, "only one patch has the identifier: \(hitsPerPatch)")
         XCTAssertFalse(filesWithHits.isEmpty, "hits group by file")
     }

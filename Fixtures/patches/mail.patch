@@ -1,0 +1,90 @@
+From 64faa674858c605b780577ecd1708b9e65efbf32 Mon Sep 17 00:00:00 2001
+From: Fixture Author <fixtures@example.invalid>
+Date: Wed, 21 Oct 2026 12:00:00 +0000
+Subject: [PATCH] Cap tile zoom at 18
+
+Deeper tiles are never rendered; refuse them early.
+---
+ README.md       | 2 ++
+ config/site.yml | 3 ++-
+ notes.txt       | 4 ++--
+ src/App.vue     | 2 ++
+ src/app.ts      | 3 +++
+ src/style.css   | 4 ++++
+ 6 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 8dae77a..4a153e2 100644
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,5 @@
+ # Lantern web
+ 
+ A viewer for lantern tiles.
++
++Tiles deeper than zoom 18 are refused.
+diff --git a/config/site.yml b/config/site.yml
+index d0772a4..50e681d 100644
+--- a/config/site.yml
++++ b/config/site.yml
+@@ -2,4 +2,5 @@ site:
+   title: Lantern
+   base: /
+   tiles:
+-    cache: 64
++    cache: 128
++    max_zoom: 18
+diff --git a/notes.txt b/notes.txt
+index 823d161..b5d9e01 100644
+--- a/notes.txt
++++ b/notes.txt
+@@ -1,3 +1,3 @@
+ first line
+-second line
+-last line without a newline
+\ No newline at end of file
++second line, edited
++last line still without a newline
+\ No newline at end of file
+diff --git a/src/App.vue b/src/App.vue
+index 8c15799..a14aa21 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -1,9 +1,11 @@
+ <template>
+   <main class="app">
+     <h1>{{ title }}</h1>
++    <p class="zoom">zoom {{ zoom }}</p>
+   </main>
+ </template>
+ 
+ <script setup lang="ts">
+ const title = 'Lantern'
++const zoom = 3
+ </script>
+diff --git a/src/app.ts b/src/app.ts
+index b3382e8..5bd25c8 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -4,6 +4,9 @@ export interface Tile {
+   zoom: number
+ }
+ 
++export const MAX_ZOOM = 18
++
+ export function key(t: Tile): string {
++  if (t.zoom > MAX_ZOOM) throw new Error('zoom too deep')
+   return `${t.zoom}/${t.x}/${t.y}`
+ }
+diff --git a/src/style.css b/src/style.css
+index fc72d7f..50d62aa 100644
+--- a/src/style.css
++++ b/src/style.css
+@@ -2,3 +2,7 @@
+   max-width: 960px;
+   margin: 0 auto;
+ }
++
++.zoom {
++  color: #666;
++}

@@ -15,9 +15,9 @@ final class BaseLoaderTests: XCTestCase {
     // MARK: - Directory
 
     func testDirectoryBaseReadsFilesAndListsThem() throws {
-        let base = DirectoryBase(root: Self.repoRoot.appendingPathComponent("Fixtures/bases/old-fixture-2"))
+        let base = DirectoryBase(root: Self.repoRoot.appendingPathComponent("Fixtures/bases/rename"))
         let paths = try base.allPaths()
-        XCTAssertEqual(paths.count, 3)
+        XCTAssertEqual(paths.count, 4)
         for path in paths {
             let data = try XCTUnwrap(base.contents(of: path))
             XCTAssertFalse(data.isEmpty, path)
@@ -57,7 +57,7 @@ final class BaseLoaderTests: XCTestCase {
         XCTAssertNil(try base.contents(of: "Sources"), "a tree is not a file")
         let paths = try base.allPaths()
         XCTAssertTrue(paths.contains("Package.swift"))
-        XCTAssertTrue(paths.contains("Fixtures/patches/scaffold.patch"))
+        XCTAssertTrue(paths.contains("Fixtures/archives/sample.zip"))
         if case .gitRevision(_, let rev, let commit) = base.origin {
             XCTAssertEqual(rev, "HEAD"); XCTAssertEqual(commit, base.commit)
         } else { XCTFail("origin") }

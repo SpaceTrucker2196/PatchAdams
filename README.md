@@ -251,7 +251,7 @@ Sources/
   SyntaxHighlight/   per-language token scanner for syntax colour
   patchadam/         command-line harness
 Tests/               one XCTest target per engine
-Fixtures/patches/    the 19 fixture patches; Fixtures/bases/ their rebuilt bases
+Fixtures/patches/    10 invented fixture patches (tools/fixtures/make_fixtures.py); Fixtures/bases/ their rebuilt bases
 ```
 
 Engines never import SwiftUI or AppKit, so `swift test` checks all of

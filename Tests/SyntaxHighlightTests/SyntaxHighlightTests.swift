@@ -125,7 +125,7 @@ final class SyntaxHighlightTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let dir = root.appendingPathComponent("Fixtures/patches")
         let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).filter { $0.pathExtension == "patch" }
-        XCTAssertEqual(files.count, 19)
+        XCTAssertEqual(files.count, 10)
         var scanned = 0, colored = 0
         for url in files {
             let patch = try UnifiedDiffParser.parse(contentsOf: url)
@@ -146,7 +146,7 @@ final class SyntaxHighlightTests: XCTestCase {
                 }
             }
         }
-        XCTAssertGreaterThan(scanned, 5_000)
+        XCTAssertGreaterThan(scanned, 1_000)
         XCTAssertGreaterThan(Double(colored) / Double(scanned), 0.5, "most code lines get some colour")
     }
 

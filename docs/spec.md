@@ -90,7 +90,7 @@ Requirements are numbered FR-n and grouped by feature. "Must" items are required
 - FR-1 (must) Open a base from a local git repository at a chosen revision, from a plain directory, or from a `.tar`/`.zip` archive.
 - FR-2 (must) Add 2 to 4 patch files by file picker, by drag and drop onto the window, or by paste. Accept `git diff` and `git format-patch` output, including binary and rename headers.
 - FR-3 (must) Apply each patch to the base in memory (not on disk) and report, per patch, which files applied cleanly, with fuzz, or failed. A failed file stays visible with its raw hunks and a warning.
-- FR-4 (must) Show the patch source file name next to its label (A, B, C, D) everywhere a label appears. The mapping confusion in this chat (which tab is lantern-1?) must not be possible.
+- FR-4 (must) Show the patch source file name next to its label (A, B, C, D) everywhere a label appears. Confusing which label is which patch must not be possible.
 - FR-5 (should) Load a session file that restores base, patches, column order, golden choice, findings, and ranking.
 - FR-6 (should) Accept an optional request text (the task prompt) and show it in a collapsible panel. The reviewer judges scope against it.
 
@@ -283,7 +283,7 @@ The app must stay responsive on the patch sizes seen in this chat (up to about 2
 
 ## Delivery plan
 
-Four phases, each gated by a real review task that the build must pass before the next phase starts. The patches from this chat (the four Go `kettle` patches, the three Zig/Rust `lantern` patches, the two Rust `glowmap` patches) are the fixture set.
+Four phases, each gated by a review task that the build must pass before the next phase starts. The fixture set is invented (DECISIONS.md D10): four Go `kettle` patches, three Rust `lantern` patches with tooling in five other languages, and three small patches for parser edge cases. No review or customer code is used.
 
 &#91;embedded content: roadmap · 4 phases, 3 gates, 1 finish line\]
 

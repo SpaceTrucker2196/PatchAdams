@@ -87,7 +87,7 @@ final class ApplyEngineTests: XCTestCase {
                 }
             }
         }
-        XCTAssertGreaterThan(checked, 10_000, "the fixture set should exercise thousands of unchanged lines")
+        XCTAssertGreaterThan(checked, 8_000, "the fixture set should exercise thousands of unchanged lines")
     }
 
     func testLineMapCountsMatchHunkArithmetic() throws {
@@ -576,13 +576,13 @@ final class DisplayLineTests: XCTestCase {
 /// synthetic base (D4). Every file in every patch must apply clean.
 final class MergedBaseApplyTests: XCTestCase {
     func testTheFourGoPatchesApplyCleanAgainstTheirMergedBase() throws {
-        let patches = try (15...18).map { try UnifiedDiffParser.parse(contentsOf: ApplyEngineTests.patchesDir.appendingPathComponent("fixture-\($0).patch")) }
+        let patches = try (1...4).map { try UnifiedDiffParser.parse(contentsOf: ApplyEngineTests.patchesDir.appendingPathComponent("kettle-\($0).patch")) }
         let files = try SyntheticBase.merged(for: patches)
         let base = InMemoryBase(label: "merged", texts: Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0.text) }))
         for (i, patch) in patches.enumerated() {
             let applied = ApplyEngine.apply(patch, to: base)
             for file in applied.files {
-                XCTAssertEqual(file.status, file.change.isBinary ? .binary : .clean, "fixture-\(15 + i) \(file.path): \(file.status)")
+                XCTAssertEqual(file.status, file.change.isBinary ? .binary : .clean, "kettle-\(1 + i) \(file.path): \(file.status)")
             }
         }
     }

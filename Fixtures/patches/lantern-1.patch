@@ -1,0 +1,117 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a7cc7be..11d5b02 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -9,3 +9,5 @@ jobs:
+         run: cargo build --release
+       - name: test
+         run: cargo test
++      - name: fixtures
++        run: sh tools/check_glow.sh
+diff --git a/README.md b/README.md
+index 4ae7398..554ab4f 100644
+--- a/README.md
++++ b/README.md
+@@ -12,3 +12,4 @@ cargo build --release
+ 
+ - `basic`: ids and names only.
+ - `glow-i16`, `glow-i32`, `glow-i64`: a glow level per feature.
++- `glow-f32`: a float glow level.
+diff --git a/crates/glowmap/src/main.rs b/crates/glowmap/src/main.rs
+index 65ff259..f451478 100644
+--- a/crates/glowmap/src/main.rs
++++ b/crates/glowmap/src/main.rs
+@@ -25,6 +25,7 @@ fn glow_schema(level_type: DataType) -> Arc<Schema> {
+         Field::new("id", DataType::Int32, false),
+         Field::new("level", level_type, false),
+         Field::new("tint", DataType::Utf8, true),
++        Field::new("radius", DataType::Float32, true),
+     ]))
+ }
+ 
+@@ -434,6 +435,7 @@ fn run_case(case: &str, mode: OutputMode, out: &Path) -> std::io::Result<()> {
+         "glow-i16" => glow_schema(DataType::Int16),
+         "glow-i32" => glow_schema(DataType::Int32),
+         "glow-i64" => glow_schema(DataType::Int64),
++        "glow-f32" => glow_schema(DataType::Float32),
+         other => panic!("unknown case {other}"),
+     };
+     let file = File::create(out)?;
+diff --git a/tools/check_glow.sh b/tools/check_glow.sh
+index f093f97..37fc1be 100644
+--- a/tools/check_glow.sh
++++ b/tools/check_glow.sh
+@@ -1,7 +1,7 @@
+ #!/bin/sh
+ set -eu
+ # Write every case and check it with the Python validator.
+-for case in basic glow-i16 glow-i32 glow-i64; do
++for case in basic glow-i16 glow-i32 glow-i64 glow-f32; do
+   cargo run -q -- "$case" "out/$case.glow"
+   python3 tools/py/glow_validate.py "out/$case.glow"
+ done
+diff --git a/tools/cpp/glow.cpp b/tools/cpp/glow.cpp
+index 6f03703..f0f5c5f 100644
+--- a/tools/cpp/glow.cpp
++++ b/tools/cpp/glow.cpp
+@@ -4,6 +4,6 @@
+ // Prints the column names of one case.
+ int main(int argc, char** argv) {
+     std::string c = argc > 1 ? argv[1] : "basic";
+-    std::cout << "id,name" << std::endl;
++    std::cout << (c == "basic" ? "id,name" : "id,level,tint") << std::endl;
+     return 0;
+ }
+diff --git a/tools/glow_fixture_writer.zig b/tools/glow_fixture_writer.zig
+index fa3c9fd..7c4496f 100644
+--- a/tools/glow_fixture_writer.zig
++++ b/tools/glow_fixture_writer.zig
+@@ -2,5 +2,5 @@ const std = @import("std");
+ 
+ pub fn main() !void {
+     const stdout = std.io.getStdOut().writer();
+-    try stdout.print("{s}\n", .{"basic"});
++    for ([_][]const u8{ "basic", "glow-f32" }) |c| try stdout.print("{s}\n", .{c});
+ }
+diff --git a/tools/py/glow_generate.py b/tools/py/glow_generate.py
+index 8d790c4..1c1c35f 100644
+--- a/tools/py/glow_generate.py
++++ b/tools/py/glow_generate.py
+@@ -1,7 +1,7 @@
+ """Write a reference stream for every case."""
+ import sys
+ 
+-CASES = ["basic", "glow-i16", "glow-i32", "glow-i64"]
++CASES = ["basic", "glow-i16", "glow-i32", "glow-i64", "glow-f32"]
+ 
+ 
+ def generate(case: str) -> list[dict]:
+diff --git a/tools/py/glow_validate.py b/tools/py/glow_validate.py
+index cf42b30..150ca6b 100644
+--- a/tools/py/glow_validate.py
++++ b/tools/py/glow_validate.py
+@@ -5,7 +5,7 @@ import sys
+ def validate(path: str) -> bool:
+     with open(path, "rb") as f:
+         head = f.read(4)
+-    return head == b"GLOW"
++    return head in (b"GLOW", b"GLW2")
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/tools/py/test_glow.py b/tools/py/test_glow.py
+new file mode 100644
+index 0000000..e4a4c23
+--- /dev/null
++++ b/tools/py/test_glow.py
+@@ -0,0 +1,10 @@
++from glow_generate import generate
++
++
++def test_basic_has_a_name():
++    assert generate("basic")[0]["name"] == "a"
++
++
++def test_glow_cases_have_a_level():
++    for case in ["glow-i16", "glow-i32", "glow-f32"]:
++        assert "level" in generate(case)[0]
