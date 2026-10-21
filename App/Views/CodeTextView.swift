@@ -250,6 +250,19 @@ enum CodeStyle {
         return NSFont.monospacedSystemFont(ofSize: clamped, weight: .regular)
     }
 
+    static let defaultFontSize = 12.0
+    static let fontSizeRange = 9.0...24.0
+
+    /// Menu bar zoom (issue #10): one point per step, clamped to the
+    /// Settings range.
+    static func zoom(by step: Double) {
+        let defaults = UserDefaults.standard
+        let current = defaults.object(forKey: fontSizeKey) as? Double ?? defaultFontSize
+        defaults.set(min(max(current + step, fontSizeRange.lowerBound), fontSizeRange.upperBound), forKey: fontSizeKey)
+    }
+
+    static func resetZoom() { UserDefaults.standard.set(defaultFontSize, forKey: fontSizeKey) }
+
     /// Changes whenever the font does, for view content keys.
     static var fontKey: String { "\(font.fontName)@\(font.pointSize)" }
 

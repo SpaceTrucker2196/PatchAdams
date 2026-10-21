@@ -66,6 +66,17 @@ struct SessionCommands: Commands {
                 .keyboardShortcut("e", modifiers: [.command, .option])
                 .disabled(!controller.hasSession)
         }
+        // Zoom the code in every column (issue #10). Same setting as
+        // Settings → Code → Size; ColumnView observes it and re-renders.
+        CommandGroup(before: .toolbar) {
+            Button(String(localized: "Bigger")) { CodeStyle.zoom(by: 1) }
+                .keyboardShortcut("=")   // the ⌘+ key; Shift is not needed
+            Button(String(localized: "Smaller")) { CodeStyle.zoom(by: -1) }
+                .keyboardShortcut("-")
+            Button(String(localized: "Actual Size")) { CodeStyle.resetZoom() }
+                .keyboardShortcut("0")
+            Divider()
+        }
         CommandMenu(String(localized: "Review")) {
             Button(String(localized: "New Finding from Selection")) { controller.newFindingFromSelection() }
                 .keyboardShortcut("n")

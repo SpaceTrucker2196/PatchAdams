@@ -88,6 +88,16 @@ enum DebugHooks {
                     i += 1
                 }
             }
+            if let n = value(after: "--zoom").flatMap(Int.init) {
+                // Fire the real menu items (issue #10), not the function behind them.
+                let view = NSApp.mainMenu?.items.first { $0.title == "View" }?.submenu
+                log("view menu: " + (view?.items.map { $0.isSeparatorItem ? "|" : "\($0.title) ⌘\($0.keyEquivalent)" }.joined(separator: ", ") ?? "none"))
+                let title = n >= 0 ? "Bigger" : "Smaller"
+                if let item = view?.items.first(where: { $0.title == title }), let menu = item.menu {
+                    for _ in 0..<abs(n) { menu.performActionForItem(at: menu.index(of: item)) }
+                }
+                log("zoom \(n) via menu → font \(CodeStyle.fontKey)")
+            }
             if let spec = value(after: "--replace"), let eq = spec.firstIndex(of: "="),
                let column = controller.columns.first(where: { $0.label == String(spec[..<eq]) }) {
                 controller.replacePatch(columnID: column.id, url: URL(fileURLWithPath: String(spec[spec.index(after: eq)...])))
