@@ -65,6 +65,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.river.patchadam.mac
+        # The Swift module keeps the old name: with module PatchAdams the
+        # window never opened on a Mac that had run PatchAdam (2026-10-21,
+        # bisected; issue #8). Users never see it.
+        PRODUCT_MODULE_NAME: PatchAdam
         MARKETING_VERSION: "0.5.0"
         CURRENT_PROJECT_VERSION: 1
     dependencies:
