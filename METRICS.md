@@ -16,3 +16,4 @@ One row per production order run through the converge loop
 | 8 | 5ac9bd9 | 2026-10-21 | 3 | 115 | yes | rename to Patch Adams + README docs + repo rename; pass 1 missed anchored project.yml lines, pass 2 display name; shipped with no window on this Mac (module rename), fixed in 1774d95 after a bisect |
 | 10 | 5f49766 | 2026-10-21 | 2 | 115 | yes | View menu zoom ⌘= ⌘− ⌘0 on the Settings size; duplicate Bigger item dropped; checked via the real menu items |
 | 9 | 1304d65 | 2026-10-21 | 3 | 131 | yes | syntax colour, SyntaxHighlight target (D9) + Spacetrucker palette; tests red on pass 1 (YAML overlap, generic fn), Go receiver fixed pass 3; 10k-line render 402 ms |
+| 11 | 2afdcc6 | 2026-10-21 | 2 | 131 | yes | app icon from owner artwork on the macOS grid; first check misread a thinned icns, asset catalog confirmed every size |
