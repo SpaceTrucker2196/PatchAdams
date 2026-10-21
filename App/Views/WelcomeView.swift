@@ -11,8 +11,12 @@ struct WelcomeView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            Image(systemName: "rectangle.split.3x1")
-                .font(.system(size: 44)).foregroundStyle(.secondary)
+            // The app icon (issue #11), not a generic symbol.
+            Image(nsImage: NSImage(named: "AppIcon") ?? NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 112, height: 112)
+                .accessibilityHidden(true)
             Text(String(localized: "Patch Adams")).font(.largeTitle).bold()
             Text(String(localized: "Two to four patches against one base, side by side."))
                 .foregroundStyle(.secondary)
