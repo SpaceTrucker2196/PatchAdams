@@ -1,3 +1,5 @@
+<img src="Design/app-icon-1024.png" width="128" alt="Patch Adams icon: a clown doctor holding a patch">
+
 # Patch Adams
 
 A native macOS app for comparing two to four patches against one code
@@ -237,6 +239,7 @@ swift run patchadam diff   old.txt new.txt
 ## Project layout
 
 ```
+Design/              the app icon: owner artwork and the 1024 px icon cut from it
 App/                 SwiftUI shell over AppKit text views (project.yml → PatchAdams.xcodeproj)
 Sources/
   PatchModel/        strict unified-diff parser

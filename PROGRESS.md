@@ -4,6 +4,18 @@ In-flight state. Newest first. Each entry: date, what changed, what's
 next, anything a cold agent must know that isn't in a doc yet (and a
 note of which doc it should move to).
 
+## 2026-10-21 — #11: the app icon
+
+**Done.** The owner's artwork (a clown doctor holding a page of + and −
+diff lines, on yellow) is in `Design/app-icon-source.png`. It is cut to
+Apple's macOS icon grid in `Design/app-icon-1024.png`: an 824 px
+rounded square, radius 185.4, on a transparent 1024 canvas with a soft
+shadow. `App/Assets.xcassets/AppIcon.appiconset` holds 16–1024 px;
+`ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon`. The compiled
+`Assets.car` carries every size at 1x and 2x (checked with `assetutil`).
+`AppIcon.icns` in the bundle holds only 16 and 128 at 1x/2x; that is
+actool's legacy fallback, and macOS 11+ reads the catalog.
+
 ## 2026-10-21 — #8 rename, #10 zoom, #9 syntax colour
 
 **Done.**

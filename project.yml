@@ -69,6 +69,7 @@ targets:
         # window never opened on a Mac that had run PatchAdam (2026-10-21,
         # bisected; issue #8). Users never see it.
         PRODUCT_MODULE_NAME: PatchAdam
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "0.5.0"
         CURRENT_PROJECT_VERSION: 1
     dependencies:
