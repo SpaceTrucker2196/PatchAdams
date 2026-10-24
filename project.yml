@@ -46,6 +46,10 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Patch Adams
+        # From the build settings below, so the DMG and About show the real
+        # version; XcodeGen otherwise writes a fixed 1.0 (issue #14).
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.developer-tools
         ITSAppUsesNonExemptEncryption: false
         LSMinimumSystemVersion: "14.0"
