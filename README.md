@@ -220,6 +220,14 @@ The debug app lands at
 without your own patches, use **Debug → Open Demo Session** (⌘⌥D):
 four Go patches on a base rebuilt from them.
 
+Pushing a tag with "Release" in its name builds the DMG on GitHub and
+attaches it to that release:
+
+```
+git tag v0.6.0-Release
+git push origin v0.6.0-Release
+```
+
 A notarized DMG needs a *Developer ID Application* certificate:
 
 ```

@@ -1,0 +1,57 @@
+# Build the Patch Adams DMG for a release (issue #14).
+#
+# Runs when a tag whose name contains "Release" (or "release") is
+# pushed, e.g. `v0.6.0-Release`, and by hand from the Actions tab. A
+# tag run attaches the DMG to the GitHub release for that tag, creating
+# the release when it does not exist yet. A manual run only keeps the
+# DMG as a workflow artifact.
+#
+# The DMG is ad-hoc signed: it opens on the Mac that downloads it after
+# a right-click → Open. Notarizing needs the owner's Developer ID
+# certificate (DECISIONS.md D2; FACTORY.md "Release").
+name: dmg
+
+on:
+  push:
+    tags:
+      - "*Release*"
+      - "*release*"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # attach the DMG to the release
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: XcodeGen
+        run: brew install xcodegen
+      - name: Build the DMG
+        run: make dmg
+      - name: Name the DMG
+        id: dmg
+        run: |
+          path=$(ls .build/PatchAdams-*.dmg)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "built $path ($(du -h "$path" | cut -f1))"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PatchAdams-dmg
+          path: ${{ steps.dmg.outputs.path }}
+          if-no-files-found: error
+      - name: Attach to the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          DMG: ${{ steps.dmg.outputs.path }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || \
+            gh release create "$TAG" --title "Patch Adams $TAG" --generate-notes --verify-tag
+          gh release upload "$TAG" "$DMG" --clobber

@@ -88,6 +88,11 @@ waits, staples, and checks it with `spctl`. Notarization needs a
 *Developer ID Application* identity, which only the account holder can
 create; `make notarize` refuses an ad-hoc signature up front.
 
+On GitHub, `.github/workflows/dmg.yml` builds the same ad-hoc DMG
+when a tag containing "Release" is pushed (`git tag v0.6.0-Release &&
+git push origin v0.6.0-Release`) and attaches it to that tag's release;
+it can also be run by hand from the Actions tab (artifact only).
+
 ## Driving the window from a shell (debug builds)
 
 `App/DebugHooks.swift` reads launch arguments so the factory can check
