@@ -40,10 +40,20 @@ jobs:
           path=$(ls .build/PatchAdams-*.dmg)
           echo "path=$path" >> "$GITHUB_OUTPUT"
           echo "built $path ($(du -h "$path" | cut -f1))"
+      - name: Build the patchadam CLI
+        id: cli
+        run: |
+          swift build -c release --arch arm64 --arch x86_64 --product patchadam
+          bin=$(swift build -c release --arch arm64 --arch x86_64 --product patchadam --show-bin-path)/patchadam
+          out=".build/patchadam-macos-universal.tar.gz"
+          tar -czf "$out" -C "$(dirname "$bin")" patchadam
+          echo "path=$out" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: PatchAdams-dmg
-          path: ${{ steps.dmg.outputs.path }}
+          path: |
+            ${{ steps.dmg.outputs.path }}
+            ${{ steps.cli.outputs.path }}
           if-no-files-found: error
       - name: Attach to the release
         if: github.ref_type == 'tag'
@@ -51,7 +61,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           DMG: ${{ steps.dmg.outputs.path }}
+          CLI: ${{ steps.cli.outputs.path }}
         run: |
           gh release view "$TAG" > /dev/null 2>&1 || \
             gh release create "$TAG" --title "Patch Adams $TAG" --generate-notes --verify-tag
-          gh release upload "$TAG" "$DMG" --clobber
+          gh release upload "$TAG" "$DMG" "$CLI" --clobber
