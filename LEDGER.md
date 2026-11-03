@@ -25,3 +25,4 @@ whole ledger: `ledger.py --energy-total`.
 | 0ec6d85 | 2026-10-21T17:56:19Z | claude-opus-5-5 | 240 | 199067 | 59908411 | 259887 | 18.0431 | Customer data purge: invented fixtures, history rewrite, repo private (#13, 697b |
 | 2f3f87e | 2026-10-24T03:46:50Z | claude-opus-5-5 | 70 | 26120 | 17628559 | 1668936 | 17.3999 | Public again; DMG workflow on Release tags (#14, 1125175); version fix 2d333c5 |
 | f4af0c2 | 2026-11-03T18:41:17Z | claude-opus-5-5 | 100 | 25355 | 4078142 | 300888 | 3.7302 | Developer ID signing + notarization for the release DMG (refs #15) |
+| 4944567 | 2026-11-03T20:29:05Z | claude-opus-5-5 | 218 | 47636 | 11428226 | 72817 | 3.8218 | Release 1.0.1: Developer ID signed + notarized DMG from CI (closes #15) |
