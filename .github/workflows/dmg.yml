@@ -54,7 +54,8 @@ jobs:
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           echo "$ASC_KEY_P8" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_6SXNN2PVAB.p8"
       - name: Build, sign and notarize the DMG
-        run: make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'
+        run: |
+          make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'
       - name: Name the DMG
         id: dmg
         run: |
