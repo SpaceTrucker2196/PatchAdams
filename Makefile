@@ -70,6 +70,7 @@ release: generate
 	$(XCODEBUILD) -project $(PROJECT) -scheme $(SCHEME) -configuration Release \
 	  -destination '$(DEST)' -derivedDataPath .build/DerivedData \
 	  CODE_SIGN_IDENTITY='$(SIGN)' CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=U3Z59VXPUB \
+	  CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
 	  OTHER_CODE_SIGN_FLAGS=--timestamp build
 	mkdir -p $(RELEASE)
 	cp -R .build/DerivedData/Build/Products/Release/PatchAdams.app $(APP)

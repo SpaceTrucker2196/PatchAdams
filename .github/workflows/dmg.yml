@@ -6,9 +6,11 @@
 # the release when it does not exist yet. A manual run only keeps the
 # DMG as a workflow artifact.
 #
-# The DMG is ad-hoc signed: it opens on the Mac that downloads it after
-# a right-click → Open. Notarizing needs the owner's Developer ID
-# certificate (DECISIONS.md D2; FACTORY.md "Release").
+# The DMG is signed with the river.io llc Developer ID, notarized and
+# stapled, so Gatekeeper names the developer (issue #15, DECISIONS.md
+# D2). The certificate and the App Store Connect key come from repo
+# secrets: DEVID_P12 (base64 .p12), DEVID_P12_PASSWORD, ASC_KEY_P8
+# (base64 .p8). The key id and issuer are in the Makefile.
 name: dmg
 
 on:
@@ -32,8 +34,27 @@ jobs:
           swift --version
       - name: XcodeGen
         run: brew install xcodegen
-      - name: Build the DMG
-        run: make dmg
+      - name: Signing keychain
+        env:
+          DEVID_P12: ${{ secrets.DEVID_P12 }}
+          DEVID_P12_PASSWORD: ${{ secrets.DEVID_P12_PASSWORD }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          kcpw=$(uuidgen)
+          echo "$DEVID_P12" | base64 --decode > "$RUNNER_TEMP/devid.p12"
+          security create-keychain -p "$kcpw" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kcpw" "$kc"
+          security import "$RUNNER_TEMP/devid.p12" -k "$kc" -P "$DEVID_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kcpw" "$kc" > /dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/devid.p12"
+          security find-identity -v -p codesigning "$kc"
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "$ASC_KEY_P8" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_6SXNN2PVAB.p8"
+      - name: Build, sign and notarize the DMG
+        run: make dmg notarize SIGN='Developer ID Application: river.io llc (U3Z59VXPUB)'
       - name: Name the DMG
         id: dmg
         run: |
@@ -45,6 +66,11 @@ jobs:
           name: PatchAdams-dmg
           path: ${{ steps.dmg.outputs.path }}
           if-no-files-found: error
+      - name: Remove the signing keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$HOME/.appstoreconnect/private_keys/AuthKey_6SXNN2PVAB.p8"
       - name: Attach to the release
         if: github.ref_type == 'tag'
         env:

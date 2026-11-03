@@ -87,9 +87,13 @@ Makefile; the `.p8` lives in `~/.appstoreconnect/private_keys/`),
 waits, staples, and checks it with `spctl`. Notarization needs a
 *Developer ID Application* identity, which only the account holder can
 create; `make notarize` refuses an ad-hoc signature up front.
+`make release` passes `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO`: without
+it Xcode adds `com.apple.security.get-task-allow` and Apple rejects
+the upload (notary job 85cdeb97, 2026-11-03).
 
-On GitHub, `.github/workflows/dmg.yml` builds the same ad-hoc DMG
-when a tag containing "Release" is pushed (`git tag v0.6.0-Release &&
+On GitHub, `.github/workflows/dmg.yml` builds the Developer ID
+signed, notarized DMG (secrets `DEVID_P12`, `DEVID_P12_PASSWORD`,
+`ASC_KEY_P8`; issue #15) when a tag containing "Release" is pushed (`git tag v0.6.0-Release &&
 git push origin v0.6.0-Release`) and attaches it to that tag's release;
 it can also be run by hand from the Actions tab (artifact only).
 
