@@ -8,7 +8,7 @@ import SyntaxHighlight
 /// A run of display lines to colour: a located region, a pin, or the
 /// spot an absent region would occupy.
 struct LineHighlight: Hashable {
-    enum Kind: Hashable { case anchor(AnchorStatus), pin, absentMarker, finding(Severity) }
+    enum Kind: Hashable { case anchor(AnchorStatus), pin, absentMarker, finding(Severity), selectedFinding }
     var lines: Range<Int>
     var kind: Kind
 }
@@ -88,8 +88,10 @@ struct CodeTextView: NSViewRepresentable {
             coordinator.contentKey = contentKey
             coordinator.language = language
             coordinator.setLines(lines)
-            scrollView.contentView.scroll(to: .zero)
-            scrollView.reflectScrolledClipView(scrollView.contentView)
+            controller.scrollSync.quietly {
+                scrollView.contentView.scroll(to: .zero)
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+            }
         }
         if let scrollRequest, scrollRequest != coordinator.lastScrollRequest {
             coordinator.lastScrollRequest = scrollRequest
@@ -138,6 +140,7 @@ struct CodeTextView: NSViewRepresentable {
             storage.beginEditing()
             storage.setAttributedString(attributed)
             storage.endEditing()
+            (textView as? FocusReportingTextView)?.lineStarts = starts
             gutter?.lineStarts = starts
             gutter?.lines = newLines
             applyHighlights()
@@ -168,6 +171,11 @@ struct CodeTextView: NSViewRepresentable {
                     let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
                     layout.addTemporaryAttribute(.underlineStyle, value: NSUnderlineStyle.thick.rawValue, forCharacterRange: range)
                     layout.addTemporaryAttribute(.underlineColor, value: CodeStyle.severityColor(severity), forCharacterRange: range)
+                case .selectedFinding:
+                    // Listed last, so it wins over an anchor background.
+                    guard lo < hi else { continue }
+                    let range = NSUnionRange(characterRange(ofLine: lo), characterRange(ofLine: hi - 1))
+                    layout.addTemporaryAttribute(.backgroundColor, value: SpacetruckerPalette.selectedFinding, forCharacterRange: range)
                 case .absentMarker:
                     // A dashed red line at the spot the region would occupy (FR-15).
                     let index = min(lo, lineStarts.count - 1)
@@ -207,6 +215,11 @@ struct CodeTextView: NSViewRepresentable {
             }
             guard let layout = textView.layoutManager, let container = textView.textContainer else { return }
             let glyphRange = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            // Lay out up to the target first: right after a file switch the
+            // new text is not laid out yet, the view is still short, and the
+            // scroll would be clamped to the top.
+            layout.ensureLayout(forGlyphRange: NSRange(location: 0, length: NSMaxRange(glyphRange)))
+            textView.sizeToFit()
             let rect = layout.boundingRect(forGlyphRange: glyphRange, in: container)
             var target = rect.origin
             target.y += textView.textContainerInset.height
@@ -234,6 +247,43 @@ struct CodeTextView: NSViewRepresentable {
 /// Reports first-responder changes so ⌘-shortcuts act on the right column.
 final class FocusReportingTextView: NSTextView {
     var onFocus: (() -> Void)?
+    /// Character offset where each display line starts, for the stripes.
+    var lineStarts: [Int] = [] { didSet { needsDisplay = true } }
+
+    /// Never narrower than the visible column, so the stripes and the
+    /// added/removed backgrounds run to its right edge on short lines.
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        guard let clip = superview as? NSClipView else { return }
+        clip.postsFrameChangedNotifications = true
+        // Selector observers are removed automatically on dealloc.
+        NotificationCenter.default.addObserver(self, selector: #selector(clipDidResize(_:)), name: NSView.frameDidChangeNotification, object: clip)
+    }
+
+    @objc private func clipDidResize(_ note: Notification) {
+        guard let clip = note.object as? NSClipView, minSize.width != clip.bounds.width else { return }
+        minSize.width = clip.bounds.width
+        sizeToFit()
+    }
+
+    /// Greenbar stripes on odd display lines, full width, under the
+    /// text and its added/removed backgrounds.
+    override func drawBackground(in rect: NSRect) {
+        super.drawBackground(in: rect)
+        guard let layout = layoutManager, let container = textContainer, !lineStarts.isEmpty else { return }
+        let glyphs = layout.glyphRange(forBoundingRect: rect.offsetBy(dx: -textContainerOrigin.x, dy: -textContainerOrigin.y), in: container)
+        SpacetruckerPalette.zebraStripe.setFill()
+        var glyph = glyphs.location
+        while glyph < NSMaxRange(glyphs) {
+            var range = NSRange()
+            let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &range)
+            if CodeStyle.lineIndex(forCharacter: layout.characterIndexForGlyph(at: glyph), in: lineStarts) % 2 == 1 {
+                NSRect(x: rect.minX, y: fragment.minY + textContainerOrigin.y, width: rect.width, height: fragment.height).fill()
+            }
+            if range.length == 0 { break }
+            glyph = NSMaxRange(range)
+        }
+    }
 
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
@@ -246,6 +296,18 @@ final class FocusReportingTextView: NSTextView {
 }
 
 enum CodeStyle {
+    /// The display line holding character `offset`, by binary search
+    /// over each line's start offset.
+    static func lineIndex(forCharacter offset: Int, in lineStarts: [Int]) -> Int {
+        var lo = 0, hi = lineStarts.count - 1
+        if hi < 0 { return 0 }
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if lineStarts[mid] <= offset { lo = mid } else { hi = mid - 1 }
+        }
+        return lo
+    }
+
     static let fontNameKey = "codeFontName"
     static let fontSizeKey = "codeFontSize"
 

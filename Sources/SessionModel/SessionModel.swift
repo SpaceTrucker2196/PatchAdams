@@ -239,8 +239,14 @@ public struct Session: Codable, Sendable, Hashable {
     public static let formatVersion = 1
 
     public var version: Int
+    /// The task's title, e.g. "Implementation comparison 103".
     public var name: String
     public var request: String
+    /// Free text about the task (issue #27). Optional so sessions saved
+    /// before it still decode.
+    public var taskInfo: String?
+    /// The task's instructions to the reviewer (issue #27).
+    public var instructions: String?
     public var base: BasePointer
     /// In display order.
     public var columns: [SessionColumn]
@@ -254,13 +260,15 @@ public struct Session: Codable, Sendable, Hashable {
     public var created: Date
     public var saved: Date?
 
-    public init(name: String, request: String = "", base: BasePointer, columns: [SessionColumn], golden: String? = nil,
+    public init(name: String, request: String = "", taskInfo: String? = nil, instructions: String? = nil, base: BasePointer, columns: [SessionColumn], golden: String? = nil,
                 categories: [String] = Session.defaultCategories, findings: [Finding] = [], ranking: Ranking = Ranking(),
                 pins: [SessionPin] = [], manualAnchors: [ManualAnchor] = [], blind: BlindMode = BlindMode(isOn: false, seed: 0),
                 created: Date = Date(), saved: Date? = nil) {
         self.version = Session.formatVersion
         self.name = name
         self.request = request
+        self.taskInfo = taskInfo
+        self.instructions = instructions
         self.base = base
         self.columns = columns
         self.golden = golden

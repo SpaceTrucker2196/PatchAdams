@@ -126,6 +126,17 @@ the blind-prompt flag. The hooks run in stages (+3 s session
 setup, +5 s selection, +8 s persist, +11 s screenshot) because a golden
 switch re-lays the text views and would drop a selection made in the
 same instant.
+1.1 flags: `--task "title|info|instructions"` fills the task header;
+`--paste-finding "text"` adds a finding the way the + popup does, and
+`--paste-popup "text"` opens that popup prefilled; `--goto-finding 1`
+clicks a finding in the sidebar; `--goto-evidence 2,1` clicks the open
+finding's reference buttons in order, a second apart; `--welcome`
+stays on the opening screen (no confirm-order step), and `--no-base`
+drops the base to show the base choice. `-interfaceScale 1.4` (an
+argument-domain default, not saved) runs at an interface scale.
+To capture a sheet, which `--shot` cannot see, list the app's own
+windows with `CGWindowListCopyWindowInfo` and run `screencapture -l
+<id>` on each — never a whole-screen capture.
 Every step logs `hook: …` to stderr.
 
 ## Code visualization (cygnus)

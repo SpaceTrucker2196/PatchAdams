@@ -7,6 +7,7 @@ import AppKit
 struct SettingsView: View {
     @AppStorage(CodeStyle.fontNameKey) private var fontName = ""
     @AppStorage(CodeStyle.fontSizeKey) private var fontSize = 12.0
+    @AppStorage(UIScale.key) private var interfaceScale = 1.0
 
     private var monospaceFonts: [String] {
         NSFontManager.shared.availableFontFamilies.filter { family in
@@ -17,6 +18,14 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section(String(localized: "Interface")) {
+                HStack {
+                    Slider(value: $interfaceScale, in: UIScale.range, step: UIScale.step) { Text(String(localized: "Scale")) }
+                    Text("\(Int((interfaceScale * 100).rounded()))%").monospacedDigit().frame(width: UIScale.size(48), alignment: .trailing)
+                }
+                Text(String(localized: "Panels, headers and footers. Bigger for a 5K display, smaller for a laptop. ⌥⌘= and ⌥⌘− change it from anywhere."))
+                    .font(.ui(.callout)).foregroundStyle(.secondary)
+            }
             Section(String(localized: "Code")) {
                 Picker(String(localized: "Font"), selection: $fontName) {
                     Text(String(localized: "System monospace")).tag("")
@@ -24,7 +33,7 @@ struct SettingsView: View {
                 }
                 HStack {
                     Slider(value: $fontSize, in: 9...24, step: 1) { Text(String(localized: "Size")) }
-                    Text("\(Int(fontSize)) pt").monospacedDigit().frame(width: 44, alignment: .trailing)
+                    Text("\(Int(fontSize)) pt").monospacedDigit().frame(width: UIScale.size(44), alignment: .trailing)
                 }
                 Text("func sample(x: Int) -> Int { x * 2 }  // \(Int(fontSize)) pt")
                     .font(Font(CodeStyle.font))
@@ -41,7 +50,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .scaledInterface()
+        .frame(width: UIScale.size(440))
         .padding(.bottom, 8)
     }
 }

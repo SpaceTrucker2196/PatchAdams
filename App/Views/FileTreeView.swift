@@ -24,7 +24,7 @@ struct FileTreeView: View {
                         Text((row.path as NSString).lastPathComponent)
                             .lineLimit(1)
                         Text((row.path as NSString).deletingLastPathComponent)
-                            .font(.caption2).foregroundStyle(.secondary)
+                            .font(.ui(.caption)).foregroundStyle(.secondary)
                             .lineLimit(1).truncationMode(.head)
                     }
                     Spacer(minLength: 2)
@@ -43,8 +43,8 @@ struct FileTreeView: View {
 
     private func chip(_ label: String, _ chip: FileChip) -> some View {
         Text(label)
-            .font(.system(size: 9, weight: .bold, design: .rounded))
-            .frame(width: 16, height: 16)
+            .font(.system(size: UIScale.size(11), weight: .bold, design: .rounded))
+            .frame(width: UIScale.size(16), height: UIScale.size(16))
             .background(RoundedRectangle(cornerRadius: 3).fill(chip.color.opacity(chip == .unchanged ? 0.15 : 0.85)))
             .foregroundStyle(chip == .unchanged ? Color.secondary : .white)
             .help(chip.rawValue)
@@ -55,8 +55,8 @@ struct FileTreeView: View {
         HStack(spacing: 10) {
             ForEach([FileChip.changed, .added, .deleted, .failed, .unchanged], id: \.self) { chip in
                 HStack(spacing: 3) {
-                    RoundedRectangle(cornerRadius: 2).fill(chip.color.opacity(chip == .unchanged ? 0.3 : 0.85)).frame(width: 8, height: 8)
-                    Text(chip.rawValue).font(.caption2).foregroundStyle(.secondary)
+                    RoundedRectangle(cornerRadius: 2).fill(chip.color.opacity(chip == .unchanged ? 0.3 : 0.85)).frame(width: UIScale.size(8), height: UIScale.size(8))
+                    Text(chip.rawValue).font(.ui(.caption)).foregroundStyle(.secondary)
                 }
             }
         }

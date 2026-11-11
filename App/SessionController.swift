@@ -134,6 +134,9 @@ final class SessionController {
     var selectedPath: String?
     var scrollLock = true
     var requestText = ""
+    /// Free text about the task, and its instructions (issue #27).
+    var taskInfo = ""
+    var taskInstructions = ""
     var showRequestPanel = true
     var filterText = ""
     var testsOnly = false
@@ -169,6 +172,14 @@ final class SessionController {
     var manualAnchors: [ManualAnchor] = []
     var showFindings = true
     var findingDraft: FindingDraft?
+    var showPasteFinding = false
+    /// The + popup's text, kept if the popup is closed before adding.
+    var pasteFindingText = ""
+    /// The finding last clicked in the sidebar, washed yellow in its column.
+    var selectedFindingID: UUID?
+    /// While a finding is open, the patches shown full width: its own,
+    /// plus any whose evidence the reviewer jumped to (issue #28).
+    var openFindingLabels: Set<String> = []
     var findingFilter = FindingFilter()
     var sessionStart = Date()
     var isDirty = false
@@ -193,12 +204,29 @@ final class SessionController {
     /// Columns in display order, hidden ones left out.
     var visibleColumns: [PatchColumn] { columns.filter { !$0.isHidden } }
 
-    var hasSession: Bool { base != nil && columns.count >= 2 }
+    /// The review opens only once the reviewer confirms which patch is
+    /// A, B, C and D (issue #22): labels are fixed for the session.
+    var hasSession: Bool { readyToConfirm && orderConfirmed }
+    var readyToConfirm: Bool { base != nil && columns.count >= 2 }
+    var orderConfirmed = false
+    var showOnboarding = false
+    static let onboardingShownKey = "onboardingShown"
+
+    /// Labels follow the order on the opening screen: first is A, then
+    /// B, C, D. Safe only before the review starts — nothing points at
+    /// a label yet.
+    func confirmPatchOrder() {
+        guard readyToConfirm, !orderConfirmed else { return }
+        let labels = ["A", "B", "C", "D"]
+        for i in columns.indices { columns[i].label = labels[i] }
+        orderConfirmed = true
+    }
 
     var baseDescription: String { base?.origin.description ?? String(localized: "no base") }
 
     var sessionTitle: String {
         guard base != nil || !columns.isEmpty else { return String(localized: "Patch Adams") }
+        if !sessionName.isEmpty { return sessionName }
         return "\(baseDescription) — \(columns.count) " + String(localized: "patches")
     }
 
@@ -331,6 +359,8 @@ final class SessionController {
         comparedRegion = nil
         searchResults = []
         requestText = ""
+        taskInfo = ""
+        taskInstructions = ""
         showRequestPanel = true
         sessionName = ""
         sessionURL = nil
@@ -343,6 +373,7 @@ final class SessionController {
         findingFilter = FindingFilter()
         sessionStart = Date()
         isDirty = false
+        orderConfirmed = false
     }
 
     /// Open patch files against a base rebuilt from them (debug hooks).

@@ -36,6 +36,14 @@ enum SpacetruckerPalette {
     static let codeBackground = dynamic(dark: deepPrussian, light: .textBackgroundColor)
     static let gutterBackground = dynamic(dark: rgb(0.00, 0.07, 0.15), light: .windowBackgroundColor)
     static let plainText = dynamic(dark: moon, light: .textColor)
+    /// Greenbar paper: every other display line gets a faint phosphor
+    /// green band, barely there, so the eye can follow a row across.
+    /// The finding picked in the sidebar: a deep amber, nearer the
+    /// palette's sunset orange than its peach, still light enough to
+    /// read syntax colour through.
+    static let amber = rgb(0.86, 0.40, 0.00)
+    static let selectedFinding = dynamic(dark: amber.withAlphaComponent(0.42), light: amber.withAlphaComponent(0.30))
+    static let zebraStripe = dynamic(dark: phosphorGreen.withAlphaComponent(0.035), light: rgb(0.12, 0.50, 0.39).withAlphaComponent(0.045))
 
     static func color(_ kind: TokenKind) -> NSColor { colors[kind] ?? plainText }
 

@@ -19,6 +19,12 @@ import SyntaxHighlight
 ///   --open <pkg>           open a .patchadam session instead of --demo / --patches
 ///   --blind                turn blind mode on before anything else
 ///   --finding "A:10-20|title|category|severity[|notflagged]"   add a finding from that region (repeatable)
+///   --paste-finding "text"  add a finding the way the + popup does (issue #17)
+///   --no-base              drop the base after loading, to show the base choice (issue #22)
+///   --welcome             stay on the opening screen (patch order, onboarding) for --shot
+///   --goto-evidence 2,1    click the open finding's reference buttons in order (issues #24, #28)
+///   --task "title|info|instructions"  fill the task header (issue #27)
+///   --goto-finding 1       click finding 1 in the sidebar (issue #19)
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
 ///   --replace B=/x.patch   put that patch in column B (issue #7); --add /x.patch adds one
@@ -72,6 +78,9 @@ enum DebugHooks {
             controller.openDemoSession(fixtures: list.split(separator: ",").map { URL(fileURLWithPath: String($0)) })
         }
         if let path = value(after: "--file") { controller.selectedPath = path }
+        if args.contains("--no-base") { controller.base = nil }   // the opening screen before a base is chosen
+        // Shell-driven runs skip the confirm-order step (issue #22); --welcome keeps it.
+        if !args.contains("--welcome") { controller.confirmPatchOrder() }
 
         // A review-sized window on the active display, so a capture sees it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -110,6 +119,37 @@ enum DebugHooks {
                     i += 2
                 } else {
                     i += 1
+                }
+            }
+            if let spec = value(after: "--task") {
+                let parts = spec.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+                controller.sessionName = parts[0]
+                if parts.count > 1 { controller.taskInfo = parts[1] }
+                if parts.count > 2 { controller.taskInstructions = parts[2] }
+                log("task \(controller.sessionName)")
+            }
+            if let text = value(after: "--paste-finding"), let column = controller.column(namedIn: text) ?? controller.focusedColumn {
+                let before = controller.findings.count
+                controller.addPastedFinding(text, column: column, category: controller.categories.first ?? "other", severity: .minor)
+                log("paste finding → \(controller.findings.count > before ? controller.findings.last!.reference : "no evidence resolved")")
+            }
+            if let text = value(after: "--paste-popup") {
+                controller.pasteFindingText = text
+                controller.showPasteFinding = true
+                log("paste popup open")
+            }
+            if let n = value(after: "--goto-finding").flatMap(Int.init), controller.findings.indices.contains(n - 1) {
+                controller.goTo(finding: controller.findings[n - 1])
+                log("goto finding \(n) → \(controller.findings[n - 1].reference)")
+            }
+            if let list = value(after: "--goto-evidence"), let finding = controller.selectedFinding {
+                let all = EvidenceParser.parse(finding.reference)
+                // One click a second apart, as a person would.
+                for (k, n) in list.split(separator: ",").compactMap({ Int($0) }).enumerated() where all.indices.contains(n - 1) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(k)) {
+                        controller.goTo(evidence: all[n - 1], of: finding)
+                        log("goto evidence \(n) → \(all[n - 1].reference) in \(controller.selectedPath ?? "none"); open \(controller.openFindingLabels.sorted())")
+                    }
                 }
             }
             if let n = value(after: "--zoom").flatMap(Int.init) {
@@ -197,7 +237,7 @@ enum DebugHooks {
         // Stage 3 (+8 s): persist and report, after the selection settled.
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
             if let pkg = value(after: "--save") {
-                controller.sessionName = URL(fileURLWithPath: pkg).deletingPathExtension().lastPathComponent
+                if controller.sessionName.isEmpty { controller.sessionName = URL(fileURLWithPath: pkg).deletingPathExtension().lastPathComponent }
                 controller.save(to: URL(fileURLWithPath: pkg))
                 log("saved \(pkg): \(controller.statusMessage ?? "")")
             }
@@ -209,7 +249,7 @@ enum DebugHooks {
             if args.contains("--state") {
                 log("state: blind prompt showing \(controller.showBlindPrompt)")
                 log("state: columns \(controller.columns.map { "\($0.label)(\($0.sourceName))\($0.isHidden ? " hidden" : "")" }.joined(separator: " ")) golden \(controller.goldenID.flatMap { id in controller.columns.first { $0.id == id }?.label } ?? "none") blind \(controller.blind.isOn) seed \(controller.blind.seed) mapping \(controller.blindMapping.sorted { $0.key < $1.key })")
-                log("state: \(controller.findings.count) findings \(controller.findings.map { "\($0.label) \($0.reference) [\($0.severity.rawValue)] \($0.title)" }) pins \(controller.pins.map(\.reference)) ranks \(controller.ranking.ranks.sorted { $0.key < $1.key }) rationale \"\(controller.ranking.rationale)\" request \(controller.requestText.count) chars")
+                log("state: \(controller.findings.count) findings \(controller.findings.map { "\($0.label) \($0.reference) [\($0.severity.rawValue)] \($0.title)" }) pins \(controller.pins.map(\.reference)) ranks \(controller.ranking.ranks.sorted { $0.key < $1.key }) rationale \"\(controller.ranking.rationale)\" request \(controller.requestText.count) chars task \"\(controller.sessionName)\" info \(controller.taskInfo.count) chars instructions \(controller.taskInstructions.count) chars")
             }
             if args.contains("--stress") {
                 let lines = (1...10_000).map { DisplayLine(kind: $0 % 50 == 0 ? .added : .context, baseLine: $0, postLine: $0, text: "func stress\($0)() { return \($0) * 2 } // synthetic") }

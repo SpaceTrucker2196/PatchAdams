@@ -2,84 +2,269 @@ import SwiftUI
 import SessionModel
 import UniformTypeIdentifiers
 
-/// Shown until the session has a base and at least two patches
-/// (FR-1, FR-2). Patches arrive by picker, drag-and-drop, or paste.
+/// Shown until the reviewer has a base, two to four patches, and has
+/// confirmed their order (FR-1, FR-2; issue #22). Patches fill the
+/// slots in order — the first is A, then B, C, D — and can be moved
+/// before the order is confirmed; after that a label means the same
+/// patch for the whole session (MISSION.md §6).
 struct WelcomeView: View {
     @Bindable var controller: SessionController
     @State private var isTargeted = false
     @State private var showGitSheet = false
 
+    private static let labels = ["A", "B", "C", "D"]
+
     var body: some View {
-        VStack(spacing: 18) {
-            // The app icon (issue #11), not a generic symbol.
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSApp.applicationIconImage)
-                .resizable()
-                .interpolation(.high)
-                .frame(width: 112, height: 112)
-                .accessibilityHidden(true)
-            Text(String(localized: "Patch Adams")).font(.largeTitle).bold()
-            Text(String(localized: "Two to four patches against one base, side by side."))
-                .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(spacing: 16) {
+                // The app icon (issue #11), not a generic symbol.
+                Image(nsImage: NSImage(named: "AppIcon") ?? NSApp.applicationIconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: UIScale.size(96), height: UIScale.size(96))
+                    .accessibilityHidden(true)
+                Text(String(localized: "Patch Adams")).font(.ui(.largeTitle)).bold()
+                Text(String(localized: "Two to four patches against one base, side by side."))
+                    .foregroundStyle(.secondary)
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    LabeledContent(String(localized: "Base")) {
-                        HStack {
-                            Text(controller.baseDescription).lineLimit(1).truncationMode(.middle)
-                            Spacer()
-                            Button(String(localized: "Directory or Archive…")) { SessionActions.openBase(controller) }
-                            Button(String(localized: "Git Revision…")) { showGitSheet = true }
-                                .disabled(controller.gitVersion == nil)
-                                .help(controller.gitVersion == nil ? String(localized: "git was not found on this Mac") : controller.gitVersion ?? "")
-                        }
-                    }
-                    LabeledContent(String(localized: "Patches")) {
-                        HStack {
-                            Text(controller.columns.map { "\(controller.displayLabel($0)) \(controller.displayName($0))" }.joined(separator: ", "))
-                                .lineLimit(2)
-                            Spacer()
-                            Button(String(localized: "Add Patches…")) { SessionActions.addPatches(controller) }
-                            Button(String(localized: "Paste")) { SessionActions.pastePatch(controller) }
-                        }
-                    }
-                    if controller.base == nil, !controller.columns.isEmpty {
-                        Button(String(localized: "No base at hand? Rebuild one from the patches")) { controller.useSyntheticBase() }
-                            .help(String(localized: "Every base line any patch shows is used; lines no patch touches are filler."))
-                    }
-                    Divider()
-                    if let git = controller.gitVersion {
-                        Label(git, systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Label(String(localized: "git not found: directory and archive bases still work; the Git Revision base is off."), systemImage: "exclamationmark.triangle")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                step(1, String(localized: "Choose the base — or build it from the patches"), done: controller.base != nil) { baseStep }
+                step(2, String(localized: "Add patches in order: A, B, C, D"), done: controller.columns.count >= 2) { patchSlots }
+                step(3, String(localized: "Confirm the patch order"), done: false) { confirmStep }
+
+                if let message = controller.errorMessage {
+                    Text(message).foregroundStyle(.red).font(.ui(.body)).textSelection(.enabled)
                 }
-                .padding(6)
+                Button(String(localized: "How does this work?")) { controller.showOnboarding = true }
+                    .buttonStyle(.link)
             }
-            .frame(maxWidth: 640)
-
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
-                .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary.opacity(0.5))
-                .frame(maxWidth: 640, minHeight: 90)
-                .overlay(Text(String(localized: "Drop .patch / .diff files, a base directory, or an archive here")).foregroundStyle(.secondary))
-                .dropDestination(for: URL.self) { urls, _ in
-                    SessionActions.handleDropped(urls, controller)
-                    return true
-                } isTargeted: { isTargeted = $0 }
-
-            if let message = controller.errorMessage {
-                Text(message).foregroundStyle(.red).font(.callout).textSelection(.enabled)
-            }
-            if controller.columns.count >= 2, controller.base != nil {
-                Text(String(localized: "Ready.")).foregroundStyle(.secondary)
-            } else {
-                Text(String(localized: "Need a base and at least two patches.")).font(.caption).foregroundStyle(.secondary)
+            .padding(32)
+            .frame(maxWidth: .infinity)
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            SessionActions.handleDropped(urls, controller)
+            return true
+        } isTargeted: { isTargeted = $0 }
+        .overlay {
+            if isTargeted {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [10]))
+                    .padding(8).allowsHitTesting(false)
             }
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showGitSheet) { GitRevisionSheet(controller: controller) }
+        .sheet(isPresented: $controller.showOnboarding) { OnboardingView(controller: controller) }
+        .onAppear {
+            if !UserDefaults.standard.bool(forKey: SessionController.onboardingShownKey) { controller.showOnboarding = true }
+        }
+    }
+
+    private func step<Content: View>(_ number: Int, _ title: String, done: Bool, @ViewBuilder content: () -> Content) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: done ? "checkmark.circle.fill" : "\(number).circle")
+                        .font(.ui(.title2)).foregroundStyle(done ? Color.green : Color.secondary)
+                    Text(title).font(.ui(.headline))
+                    Spacer()
+                }
+                content()
+            }
+            .padding(8)
+        }
+        .frame(maxWidth: UIScale.size(680))
+    }
+
+    /// Two plain choices (issue #22): real code, or a base built from
+    /// the patches — the second is easy to miss when it hides until
+    /// patches are loaded, so it is always shown.
+    private var baseStep: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "The code every patch was written against. Pick one:"))
+                .font(.ui(.callout)).foregroundStyle(.secondary)
+            if controller.base != nil {
+                Label(controller.baseDescription, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green).lineLimit(1).truncationMode(.middle)
+            }
+            HStack(alignment: .top, spacing: 10) {
+                choice(String(localized: "I have the code"),
+                       detail: String(localized: "A project folder, a .zip / .tar.gz archive, or a git revision."), icon: "folder") {
+                    HStack {
+                        Button(String(localized: "Folder or Archive…")) { SessionActions.openBase(controller) }
+                        Button(String(localized: "Git Revision…")) { showGitSheet = true }
+                            .disabled(controller.gitVersion == nil)
+                            .help(controller.gitVersion == nil ? String(localized: "git was not found on this Mac") : controller.gitVersion ?? "")
+                    }
+                }
+                choice(String(localized: "I only have the patches"),
+                       detail: String(localized: "Build the base from the patches themselves. Lines no patch shows are left out."), icon: "square.stack.3d.up") {
+                    Button(String(localized: "Build Base from Patches")) { controller.useSyntheticBase() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(controller.columns.isEmpty)
+                        .help(String(localized: "Every base line any patch shows is used; lines no patch touches are filler."))
+                    if controller.columns.isEmpty {
+                        Text(String(localized: "Add the patches in step 2 first, or just press Confirm in step 3 — it builds this for you."))
+                            .font(.ui(.callout)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            if controller.gitVersion == nil {
+                Label(String(localized: "git not found: folder and archive bases still work; the Git Revision base is off."), systemImage: "exclamationmark.triangle")
+                    .font(.ui(.callout)).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func choice<Content: View>(_ title: String, detail: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: icon).font(.ui(.headline))
+            Text(detail).font(.ui(.callout)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            content()
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+    }
+
+    /// Four slots, always shown, so the order is plain before anything
+    /// is loaded: the next patch goes into the first empty slot.
+    private var patchSlots: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(localized: "Up to four. The first patch you add is A, the next B, then C and D. Use the arrows to change the order."))
+                .font(.ui(.callout)).foregroundStyle(.secondary)
+            ForEach(0..<4, id: \.self) { i in
+                slotRow(i)
+            }
+            HStack {
+                Button(String(localized: "Add Patches…")) { SessionActions.addPatches(controller) }
+                    .disabled(controller.columns.count >= 4)
+                Button(String(localized: "Paste")) { SessionActions.pastePatch(controller) }
+                    .disabled(controller.columns.count >= 4)
+                Spacer()
+                Text(String(localized: "or drop .patch / .diff files anywhere in this window")).font(.ui(.callout)).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func slotRow(_ i: Int) -> some View {
+        let column = i < controller.columns.count ? controller.columns[i] : nil
+        let isNext = i == controller.columns.count
+        return HStack(spacing: 10) {
+            Text(Self.labels[i])
+                .font(.system(size: UIScale.size(for: .title3), design: .rounded)).bold()
+                .frame(width: UIScale.size(30), height: UIScale.size(30))
+                .background(Circle().fill(column == nil ? Color.secondary.opacity(0.2) : Color.accentColor))
+                .foregroundStyle(column == nil ? Color.secondary : Color.white)
+            if let column {
+                Text(column.sourceName).lineLimit(1).truncationMode(.middle)
+                Text(String(localized: "\(column.patch.files.count) files")).font(.ui(.callout)).foregroundStyle(.secondary)
+                Spacer()
+                Button { controller.moveColumn(column.id, by: -1) } label: { Image(systemName: "arrow.up") }
+                    .disabled(i == 0).help(String(localized: "Move up: an earlier letter"))
+                Button { controller.moveColumn(column.id, by: 1) } label: { Image(systemName: "arrow.down") }
+                    .disabled(i == controller.columns.count - 1).help(String(localized: "Move down: a later letter"))
+                Button { controller.removeColumn(column.id) } label: { Image(systemName: "xmark") }
+                    .help(String(localized: "Remove this patch"))
+            } else {
+                Text(isNext ? String(localized: "Next patch goes here") : String(localized: "Empty"))
+                    .foregroundStyle(isNext ? .primary : .tertiary)
+                Spacer()
+                if isNext {
+                    Button(String(localized: "Choose…")) {
+                        if let url = SessionActions.chooseOnePatch() { controller.addPatch(url: url) }
+                    }
+                }
+            }
+        }
+        .buttonStyle(.borderless)
+        .padding(.vertical, 4).padding(.horizontal, 8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(column == nil ? Color.clear : Color.accentColor.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(column == nil ? 0.35 : 0.15),
+                                                                style: StrokeStyle(lineWidth: 1, dash: column == nil ? [4] : [])))
+    }
+
+    private var confirmStep: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if controller.columns.count >= 2 {
+                Text(String(localized: "These letters stay with these patches for the whole review, in findings, ranks and the export."))
+                    .font(.ui(.callout)).foregroundStyle(.secondary)
+                Text(controller.columns.enumerated().map { "\(Self.labels[$0.offset]) = \($0.element.sourceName)" }.joined(separator: "   "))
+                    .font(.ui(.callout).monospaced())
+                if controller.base == nil {
+                    // Say it before it happens: no base chosen means one is built (issue #22).
+                    Label(String(localized: "No base chosen: Confirm builds one from these patches."), systemImage: "square.stack.3d.up")
+                        .font(.ui(.callout)).foregroundStyle(.orange)
+                }
+                Button(controller.base == nil ? String(localized: "Build Base, Confirm Order and Start Review")
+                                              : String(localized: "Confirm Order and Start Review")) {
+                    if controller.base == nil { controller.useSyntheticBase() }
+                    controller.confirmPatchOrder()
+                }
+                .keyboardShortcut(.defaultAction)
+                .controlSize(.large)
+            } else {
+                Text(String(localized: "Add at least two patches."))
+                    .font(.ui(.callout)).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// First-run guide (issue #22): what to load, in what order, and what
+/// to do once the columns are up. Shown once; "How does this work?"
+/// on the opening screen brings it back.
+struct OnboardingView: View {
+    @Bindable var controller: SessionController
+    @State private var page = 0
+
+    private var pages: [(icon: String, title: String, text: String)] {[
+        ("hand.wave", String(localized: "Welcome to Patch Adams"),
+         String(localized: "Compare two to four patches that each try to solve the same task, side by side, and write down what is wrong with each one.")),
+        ("folder", String(localized: "1. Choose the base"),
+         String(localized: "The base is the code before any patch: a project folder, a .zip or .tar.gz archive, or a git revision. Only have the patches? That is fine: press Build Base from Patches, or just Confirm — it builds one for you.")),
+        ("square.stack.3d.up", String(localized: "2. Add patches in order"),
+         String(localized: "Add up to four .patch or .diff files. They fill the slots in order: the first is A, the next B, then C and D. Drop several at once, or use Add Patches.")),
+        ("checkmark.seal", String(localized: "3. Confirm the order"),
+         String(localized: "Check which patch is A, B, C and D. Use the arrows to fix the order, then press Confirm. The letters then stay fixed for the whole review.")),
+        ("text.magnifyingglass", String(localized: "4. Review"),
+         String(localized: "Pick a file on the left. Select lines to find the same code in the other columns. Press + in Findings to paste a finding: \"Implementation A … (main.go L100-L110)\" marks those lines in patch A.")),
+    ]}
+
+    var body: some View {
+        let current = pages[page]
+        VStack(spacing: 18) {
+            Image(systemName: current.icon).font(.system(size: UIScale.size(44))).foregroundStyle(Color.accentColor).frame(height: UIScale.size(56))
+            Text(current.title).font(.ui(.title2)).bold()
+            Text(current.text).font(.ui(.body)).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true).frame(maxWidth: UIScale.size(440))
+            if page == 2 {
+                HStack(spacing: 10) {
+                    ForEach(["A", "B", "C", "D"], id: \.self) { label in
+                        Text(label).font(.system(size: UIScale.size(for: .title3), design: .rounded)).bold()
+                            .frame(width: UIScale.size(34), height: UIScale.size(34)).background(Circle().fill(Color.accentColor)).foregroundStyle(.white)
+                    }
+                }
+            }
+            HStack(spacing: 6) {
+                ForEach(pages.indices, id: \.self) { i in
+                    Circle().fill(i == page ? Color.accentColor : Color.secondary.opacity(0.3)).frame(width: UIScale.size(7), height: UIScale.size(7))
+                }
+            }
+            HStack {
+                Button(String(localized: "Skip")) { finish() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                if page > 0 { Button(String(localized: "Back")) { page -= 1 } }
+                Button(page == pages.count - 1 ? String(localized: "Get Started") : String(localized: "Next")) {
+                    if page == pages.count - 1 { finish() } else { page += 1 }
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(28)
+        .frame(width: UIScale.size(540))
+    }
+
+    private func finish() {
+        UserDefaults.standard.set(true, forKey: SessionController.onboardingShownKey)
+        controller.showOnboarding = false
     }
 }
 
@@ -91,7 +276,7 @@ struct GitRevisionSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "Open a git revision as the base")).font(.headline)
+            Text(String(localized: "Open a git revision as the base")).font(.ui(.headline))
             HStack {
                 TextField(String(localized: "Repository path"), text: $repository)
                 Button(String(localized: "Choose…")) {
@@ -114,7 +299,7 @@ struct GitRevisionSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(width: UIScale.size(480))
     }
 }
 
@@ -168,14 +353,16 @@ enum SessionActions {
         controller.addPatch(text: text, name: String(localized: "Pasted patch \(controller.columns.count + 1)"))
     }
 
-    static let sessionType = UTType(exportedAs: "io.river.patchadam.session", conformingTo: .package)
+    /// One file since D11; a folder package from before still opens.
+    static let sessionType = UTType(exportedAs: "io.river.patchadam.session", conformingTo: .data)
 
     static func openSession(_ controller: SessionController) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [sessionType]
+        panel.allowedContentTypes = [sessionType, .package, .folder]
+        panel.treatsFilePackagesAsDirectories = false
         panel.message = String(localized: "Choose a .patchadam session")
         if panel.runModal() == .OK, let url = panel.url { controller.open(sessionURL: url) }
     }
@@ -186,7 +373,7 @@ enum SessionActions {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [sessionType]
         panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "Review") : controller.sessionName) + ".patchadam"
-        panel.message = String(localized: "Save the session as a .patchadam package")
+        panel.message = String(localized: "Save the session, with every patch, as one .patchadam file")
         if panel.runModal() == .OK, let url = panel.url { controller.save(to: url) }
     }
 

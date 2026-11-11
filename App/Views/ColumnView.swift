@@ -38,7 +38,7 @@ struct ColumnView: View {
     private var header: some View {
         HStack(spacing: 8) {
             Text(controller.displayLabel(column) + (isGolden ? " ★" : ""))
-                .font(.system(.headline, design: .rounded)).bold()
+                .font(.system(size: UIScale.size(for: .headline), design: .rounded)).bold()
                 .padding(.horizontal, 7).padding(.vertical, 2)
                 .background(Capsule().fill(labelColor))
                 .foregroundStyle(.white)
@@ -48,10 +48,10 @@ struct ColumnView: View {
                 anchorBadge(anchor)
             }
             Text(controller.displayName(column))
-                .font(.callout)
+                .font(.ui(.body))
                 .lineLimit(1)
                 .truncationMode(.middle)
-                .frame(minWidth: 60, alignment: .leading)
+                .frame(minWidth: UIScale.size(40), alignment: .leading)
                 .layoutPriority(1)
                 .help(controller.displayName(column))
             Spacer(minLength: 4)
@@ -86,7 +86,7 @@ struct ColumnView: View {
     private func anchorBadge(_ anchor: RegionAnchor) -> some View {
         let text = anchor.status == .absent ? anchor.status.rawValue : "\(anchor.status.rawValue) \(Int((anchor.confidence * 100).rounded()))%"
         return Text(text)
-            .font(.caption.bold())
+            .font(.ui(.callout).bold())
             .lineLimit(1).fixedSize()
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(RoundedRectangle(cornerRadius: 4).fill(Color(nsColor: CodeStyle.anchorColor(anchor.status))))
@@ -96,9 +96,11 @@ struct ColumnView: View {
             .accessibilityLabel(text)
     }
 
-    private var labelColor: Color {
-        switch column.label {
-        case _ where controller.blind.isOn: return .gray   // one colour for all in blind mode
+    private var labelColor: Color { Self.labelColor(column.label, blind: controller.blind.isOn) }
+
+    static func labelColor(_ label: String, blind: Bool) -> Color {
+        switch label {
+        case _ where blind: return .gray   // one colour for all in blind mode
         case "A": return .blue
         case "B": return .purple
         case "C": return .teal
@@ -114,7 +116,7 @@ struct ColumnView: View {
             let status = file?.status.label ?? "—"
             let text = change.isBinary ? String(localized: "binary") : "\(change.kind.rawValue) · \(status)"
             Text(text)
-                .font(.caption)
+                .font(.ui(.callout))
                 .lineLimit(1)
                 .fixedSize()
                 .padding(.horizontal, 6).padding(.vertical, 2)
@@ -123,17 +125,17 @@ struct ColumnView: View {
                 .help(text)
         } else if path != nil {
             Text(String(localized: "not in this patch"))
-                .font(.caption).lineLimit(1).fixedSize().foregroundStyle(.secondary)
+                .font(.ui(.callout)).lineLimit(1).fixedSize().foregroundStyle(.secondary)
         }
     }
 
     /// The chip, reduced to a dot when the column is narrow.
     @ViewBuilder private var statusDot: some View {
         if let path, column.patch.files.contains(where: { $0.path == path || $0.oldPath == path }) {
-            Circle().fill(chipColor(file?.status)).frame(width: 8, height: 8)
+            Circle().fill(chipColor(file?.status)).frame(width: UIScale.size(8), height: UIScale.size(8))
                 .help(file?.status.label ?? "")
         } else {
-            Circle().stroke(Color.secondary).frame(width: 8, height: 8)
+            Circle().stroke(Color.secondary).frame(width: UIScale.size(8), height: UIScale.size(8))
                 .help(String(localized: "not in this patch"))
         }
     }
@@ -153,7 +155,7 @@ struct ColumnView: View {
             }
             Spacer()
         }
-        .font(.caption)
+        .font(.ui(.callout))
         .padding(6)
         .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4])).foregroundStyle(.red))
         .padding(4)
@@ -169,6 +171,9 @@ struct ColumnView: View {
         }
         for finding in controller.findings(in: column.id, path: path) where !finding.notFlagged {
             out.append(LineHighlight(lines: finding.lines.range, kind: .finding(finding.severity)))
+        }
+        for lines in controller.selectedFindingLines(in: column, path: path) {
+            out.append(LineHighlight(lines: lines, kind: .selectedFinding))
         }
         return out
     }
@@ -189,13 +194,13 @@ struct ColumnView: View {
             VStack(spacing: 0) {
                 if let file, case .failed(let reason) = file.status {
                     Label(String(localized: "Did not apply: \(reason). Showing the raw hunks."), systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
+                        .font(.ui(.callout))
                         .padding(6)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.orange.opacity(0.2))
                 } else if let file, case .fuzz(let n) = file.status {
                     Label(String(localized: "Applied with fuzz \(n)."), systemImage: "exclamationmark.circle")
-                        .font(.caption).padding(6)
+                        .font(.ui(.callout)).padding(6)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.yellow.opacity(0.2))
                 } else if let file, file.change.isBinary {
@@ -204,7 +209,7 @@ struct ColumnView: View {
                 }
                 if lines.count > SessionController.reducedModeThreshold {
                     Text(String(localized: "Reduced mode: hunks only (\(lines.count) lines)."))
-                        .font(.caption).foregroundStyle(.secondary).padding(4)
+                        .font(.ui(.callout)).foregroundStyle(.secondary).padding(4)
                 }
                 if let anchor, anchor.status == .absent {
                     absentNotice(anchor, path: path)
@@ -221,5 +226,40 @@ struct ColumnView: View {
             ProgressView(String(localized: "Applying…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+/// A column folded to a strip while a finding in another patch is
+/// selected (issue #23), so the finding's patch takes the width.
+/// Clicking it opens that patch beside the finding's (issue #28).
+struct CollapsedColumnView: View {
+    let column: PatchColumn
+    @Bindable var controller: SessionController
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) { _ = controller.openFindingLabels.insert(column.label) }
+        } label: {
+            VStack(spacing: 10) {
+                Text(controller.displayLabel(column))
+                    .font(.system(size: UIScale.size(for: .headline), design: .rounded)).bold()
+                    .frame(width: UIScale.size(26), height: UIScale.size(26))
+                    .background(Circle().fill(ColumnView.labelColor(column.label, blind: controller.blind.isOn)))
+                    .foregroundStyle(.white)
+                Text(controller.displayName(column))
+                    .font(.ui(.callout)).foregroundStyle(.secondary).lineLimit(1)
+                    .fixedSize()
+                    .rotationEffect(.degrees(90))
+                    .frame(width: UIScale.size(26), height: UIScale.size(200))
+                Spacer()
+                Image(systemName: "arrow.left.and.right").foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(Color(nsColor: SpacetruckerPalette.gutterBackground))
+        .help(String(localized: "Open this patch beside the finding"))
     }
 }

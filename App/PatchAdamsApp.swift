@@ -86,6 +86,14 @@ struct SessionCommands: Commands {
             Button(String(localized: "Actual Size")) { CodeStyle.resetZoom() }
                 .keyboardShortcut("0")
             Divider()
+            // Interface scale (issue #29): panels, headers, footers.
+            Button(String(localized: "Bigger Interface")) { UIScale.zoom(by: 1) }
+                .keyboardShortcut("=", modifiers: [.command, .option])
+            Button(String(localized: "Smaller Interface")) { UIScale.zoom(by: -1) }
+                .keyboardShortcut("-", modifiers: [.command, .option])
+            Button(String(localized: "Actual Interface Size")) { UIScale.reset() }
+                .keyboardShortcut("0", modifiers: [.command, .option])
+            Divider()
         }
         CommandMenu(String(localized: "Review")) {
             Button(String(localized: "New Finding from Selection")) { controller.newFindingFromSelection() }

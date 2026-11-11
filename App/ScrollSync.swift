@@ -19,6 +19,10 @@ final class ScrollSync {
     private var entries: [UUID: Entry] = [:]
     private var observers: [UUID: any NSObjectProtocol] = [:]
     private var syncing = false
+    /// Last vertical offset per column: a bounds change that keeps it is
+    /// a resize (a column folding away, issue #23), not a scroll, and
+    /// must not drag the other columns to this one's position.
+    private var lastOffset: [UUID: CGFloat] = [:]
     /// `isEnabled` is set by the controller; the sync reads it on every scroll.
     var isEnabled: () -> Bool = { true }
     /// Which number is the shared frame for a column: `postLine` for the
@@ -37,6 +41,16 @@ final class ScrollSync {
     func unregister(_ id: UUID) {
         if let observer = observers.removeValue(forKey: id) { NotificationCenter.default.removeObserver(observer) }
         entries[id] = nil
+        lastOffset[id] = nil
+    }
+
+    /// Scroll without the others following: a column showing new text
+    /// goes back to its top, and that is not the reviewer scrolling.
+    func quietly(_ body: () -> Void) {
+        let was = syncing
+        syncing = true
+        body()
+        syncing = was
     }
 
     func focus(_ id: UUID) {
@@ -73,7 +87,10 @@ final class ScrollSync {
     }
 
     private func didScroll(_ source: UUID) {
-        guard !syncing, isEnabled(), entries.count > 1 else { return }
+        guard let offset = entries[source]?.scrollView?.contentView.bounds.origin.y else { return }
+        let moved = lastOffset[source] != offset
+        lastOffset[source] = offset
+        guard moved, !syncing, isEnabled(), entries.count > 1 else { return }
         guard let top = topLine(of: source), let sourceLines = entries[source]?.coordinator?.lines, top < sourceLines.count else { return }
         guard let anchor = sourceLines.anchorReference(at: top, key: usesPostLineFrame(source) ? \.postLine : \.baseLine) else { return }
         guard let sourceTextView = entries[source]?.textView else { return }

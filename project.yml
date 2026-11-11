@@ -53,17 +53,17 @@ targets:
         LSApplicationCategoryType: public.app-category.developer-tools
         ITSAppUsesNonExemptEncryption: false
         LSMinimumSystemVersion: "14.0"
-        # The .patchadam session package (spec "Persistence").
+        # The .patchadam session: one file since D11 (issue #27).
         CFBundleDocumentTypes:
           - CFBundleTypeName: Patch Adams Session
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
-            LSTypeIsPackage: true
+            LSTypeIsPackage: false
             LSItemContentTypes: [io.river.patchadam.session]
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: io.river.patchadam.session
             UTTypeDescription: Patch Adams Session
-            UTTypeConformsTo: [com.apple.package]
+            UTTypeConformsTo: [public.data, public.content]
             UTTypeTagSpecification:
               public.filename-extension: [patchadam]
     settings:

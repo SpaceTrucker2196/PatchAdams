@@ -76,6 +76,20 @@ extension SessionController {
 
     var filteredFindings: [Finding] { findings.filter { findingFilter.admits($0) } }
 
+    var selectedFinding: Finding? { findings.first { $0.id == selectedFindingID } }
+
+    /// Every range the selected finding cites in this column and file:
+    /// its own lines, plus each reference in a pasted finding's list.
+    func selectedFindingLines(in column: PatchColumn, path: String) -> [Range<Int>] {
+        guard let finding = selectedFinding, let own = columns.first(where: { $0.label == finding.label }) else { return [] }
+        var out = finding.label == column.label && finding.path == path ? [finding.lines.range] : []
+        // Evidence in another patch, `(B main.go L5)`, lights up in that patch (issue #28).
+        for hit in evidenceHits(finding.reference, defaultColumn: own) where hit.column.id == column.id && hit.path == path {
+            if !out.contains(hit.lines) { out.append(hit.lines) }
+        }
+        return out
+    }
+
     func findings(in columnID: UUID, path: String) -> [Finding] {
         guard let label = columns.first(where: { $0.id == columnID })?.label else { return [] }
         return findings.filter { $0.label == label && $0.path == path }
@@ -98,6 +112,106 @@ extension SessionController {
             finding.anchors = findingAnchors(path: path)
         }
         findingDraft = FindingDraft(finding: finding, isNew: true, templateOf: nil)
+    }
+
+    /// Where one pasted reference lands in a column: the touched file
+    /// whose path ends with the written name, and the display lines
+    /// whose post line (base line for `-L`) is in the range. `nil` when
+    /// the file or the lines are not in this column.
+    func resolve(_ evidence: Evidence, in column: PatchColumn) -> (path: String, lines: Range<Int>)? {
+        let name = evidence.fileName.hasPrefix("./") ? String(evidence.fileName.dropFirst(2)) : evidence.fileName
+        let paths = Set(columns.flatMap { $0.patch.files.map(\.path) })
+        guard let path = paths.contains(name) ? name : paths.sorted().first(where: { $0.hasSuffix("/" + name) }) else { return nil }
+        let lines = displayLines(column: column, path: path)
+        let hits = lines.indices.filter { i in
+            guard let n = evidence.removedSide ? lines[i].baseLine : lines[i].postLine else { return false }
+            return (evidence.start...evidence.end).contains(n)
+        }
+        guard let first = hits.first, let last = hits.last else { return nil }
+        return (path, first..<last + 1)
+    }
+
+    /// The column pasted text names — "Implementation A", or "Patch 2"
+    /// in blind mode, where the reviewer only sees numbers.
+    func column(namedIn text: String) -> PatchColumn? {
+        guard let label = EvidenceParser.patchLabel(in: text) else { return nil }
+        return columns.first { displayLabel($0) == label } ?? columns.first { $0.label == label }
+    }
+
+    /// The + button: a finding from pasted text. The title is the first
+    /// line, the description the whole paste; the finding sits at the
+    /// first reference that resolves, and its reference lists them all.
+    func addPastedFinding(_ text: String, column: PatchColumn, category: String, severity: Severity) {
+        let hits = evidenceHits(text, defaultColumn: column)
+        // The finding sits in its own patch when any evidence lands there.
+        guard let anchor = hits.first(where: { $0.column.id == column.id }) ?? hits.first else { return }
+        let finding = Finding(label: anchor.column.label, path: anchor.path, lines: LineSpan(anchor.lines),
+                              reference: references(for: hits, findingLabel: anchor.column.label),
+                              title: Self.firstSentence(of: text), description: text.trimmingCharacters(in: .whitespacesAndNewlines),
+                              category: category, severity: severity)
+        findings.append(finding)
+        isDirty = true
+        statusMessage = String(localized: "Finding added: \(finding.reference)")
+    }
+
+    /// One piece of evidence found in the code: which patch, file and lines.
+    struct EvidenceHit {
+        var evidence: Evidence
+        var column: PatchColumn
+        var path: String
+        var lines: Range<Int>
+    }
+
+    /// The patch a piece of evidence points at: the one its letter
+    /// names, `(B main.go L5)`, else the finding's own (issue #28).
+    func column(for evidence: Evidence, default fallback: PatchColumn) -> PatchColumn {
+        guard let label = evidence.label else { return fallback }
+        return columns.first { displayLabel($0) == label } ?? columns.first { $0.label == label } ?? fallback
+    }
+
+    /// Every reference in `text` that lands in the code, each in its own patch.
+    func evidenceHits(_ text: String, defaultColumn: PatchColumn) -> [EvidenceHit] {
+        EvidenceParser.parse(text).compactMap { evidence in
+            let column = column(for: evidence, default: defaultColumn)
+            return resolve(evidence, in: column).map { EvidenceHit(evidence: evidence, column: column, path: $0.path, lines: $0.lines) }
+        }
+    }
+
+    /// The stored reference list: generated `file Lstart:Lend` per hit,
+    /// with the patch letter in front when it is not the finding's patch.
+    func references(for hits: [EvidenceHit], findingLabel: String) -> String {
+        hits.compactMap { hit in
+            let lines = displayLines(column: hit.column, path: hit.path)
+            guard let reference = LineReference.forDisplayLines(lines[hit.lines], fileName: (hit.path as NSString).lastPathComponent)?.description else { return nil }
+            return hit.column.label == findingLabel ? reference : "\(displayLabel(hit.column)) \(reference)"
+        }.joined(separator: "; ")
+    }
+
+    /// A pasted finding's title: its first sentence, at most 160 characters.
+    static func firstSentence(of text: String) -> String {
+        let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        let sentence = line.range(of: #"[.!?](\s|$)"#, options: .regularExpression).map { String(line[..<$0.upperBound]) } ?? line
+        return String(sentence.trimmingCharacters(in: .whitespaces).prefix(160))
+    }
+
+    /// An in-place edit from the sidebar. When the text still cites
+    /// evidence that lands in the finding's column, the reference and
+    /// the highlighted lines follow the edit.
+    func updateFinding(_ id: UUID, _ edit: (inout Finding) -> Void) {
+        guard let i = findings.firstIndex(where: { $0.id == id }) else { return }
+        var finding = findings[i]
+        edit(&finding)
+        if finding.description != findings[i].description, let column = columns.first(where: { $0.label == finding.label }) {
+            let hits = evidenceHits(finding.description, defaultColumn: column)
+            if let anchor = hits.first(where: { $0.column.id == column.id }) {
+                finding.path = anchor.path
+                finding.lines = LineSpan(anchor.lines)
+            }
+            if !hits.isEmpty { finding.reference = references(for: hits, findingLabel: finding.label) }
+        }
+        guard finding != findings[i] else { return }
+        findings[i] = finding
+        isDirty = true
     }
 
     /// The current anchors as the finding will record them (FR-33).
@@ -144,7 +258,18 @@ extension SessionController {
         }
     }
 
+    /// A draft with no title but some description can still be saved:
+    /// the description's first sentence becomes the title.
+    var draftCanSave: Bool {
+        guard var finding = findingDraft?.finding else { return false }
+        if finding.title.trimmingCharacters(in: .whitespaces).isEmpty { finding.title = Self.firstSentence(of: finding.description) }
+        return finding.isComplete
+    }
+
     func saveDraft() {
+        if let draft = findingDraft, draft.finding.title.trimmingCharacters(in: .whitespaces).isEmpty {
+            findingDraft?.finding.title = Self.firstSentence(of: draft.finding.description)
+        }
         guard let draft = findingDraft, draft.finding.isComplete else { return }
         if let i = findings.firstIndex(where: { $0.id == draft.finding.id }) {
             findings[i] = draft.finding
@@ -157,6 +282,7 @@ extension SessionController {
     }
 
     func deleteFinding(_ id: UUID) {
+        if selectedFindingID == id { selectedFindingID = nil }   // unfold the columns too
         findings.removeAll { $0.id == id }
         isDirty = true
     }
@@ -171,12 +297,35 @@ extension SessionController {
     /// region in the others (FR-28).
     func goTo(finding: Finding) {
         guard let column = columns.first(where: { $0.label == finding.label }) else { return }
+        selectedFindingID = finding.id
+        openFindingLabels = [finding.label]
         selectedPath = finding.path
         selections[column.id] = finding.lines.range
         selectionIsEmpty[column.id] = false
         if column.isHidden { toggleHidden(column.id) }
         scrollTo(columnID: column.id, displayLine: finding.lines.lower)
         locate(SelectionRegion(columnID: column.id, path: finding.path, lines: finding.lines.range))
+    }
+
+    /// A reference chip in an open finding: show that file in the
+    /// finding's column and scroll to the lines (issue #24).
+    func goTo(evidence: Evidence, of finding: Finding) {
+        guard let own = columns.first(where: { $0.label == finding.label }) else { return }
+        let column = column(for: evidence, default: own)
+        guard let hit = resolve(evidence, in: column) else {
+            statusMessage = String(localized: "\(evidence.reference) is not in patch \(displayLabel(column)).")
+            return
+        }
+        // Show the finding's patch and the evidence's patch, nothing else:
+        // a click on the finding's own evidence folds any other patch an
+        // earlier click opened (issue #28).
+        if column.isHidden { toggleHidden(column.id) }
+        withAnimation(.easeInOut(duration: 0.25)) { openFindingLabels = [finding.label, column.label] }
+        selectedPath = hit.path
+        selections[column.id] = hit.lines
+        selectionIsEmpty[column.id] = false
+        scrollTo(columnID: column.id, displayLine: hit.lines.lowerBound)
+        locate(SelectionRegion(columnID: column.id, path: hit.path, lines: hit.lines))
     }
 
     /// `}` and `{`: the next or previous finding in the focused column.
@@ -261,7 +410,9 @@ extension SessionController {
     }
 
     func makeSession() -> Session {
-        Session(name: sessionName, request: requestText, base: basePointer,
+        Session(name: sessionName, request: requestText,
+                taskInfo: taskInfo.isEmpty ? nil : taskInfo, instructions: taskInstructions.isEmpty ? nil : taskInstructions,
+                base: basePointer,
                 columns: columns.map { SessionColumn(label: $0.label, sourceName: $0.sourceName, patchFile: "", isHidden: $0.isHidden, isRead: $0.isRead) },
                 golden: goldenID.flatMap { id in columns.first { $0.id == id }?.label },
                 categories: categories, findings: findings, ranking: ranking,
@@ -277,7 +428,8 @@ extension SessionController {
         SessionPackage.Contents(session: makeSession(), patchTexts: Dictionary(uniqueKeysWithValues: columns.map { ($0.label, $0.sourceText) }))
     }
 
-    /// Write the `.patchadam` package. The one place the app writes files.
+    /// Write the `.patchadam` session file: one file with every patch in
+    /// it (D11). The one place the app writes files.
     func save(to url: URL) {
         do {
             if sessionName.isEmpty { sessionName = url.deletingPathExtension().lastPathComponent }
@@ -321,6 +473,8 @@ extension SessionController {
         sessionName = session.name
         sessionURL = url
         requestText = session.request
+        taskInfo = session.taskInfo ?? ""
+        taskInstructions = session.instructions ?? ""
         showRequestPanel = false
         categories = session.categories
         findings = session.findings
@@ -334,6 +488,7 @@ extension SessionController {
             }
         }
         sessionStart = session.created
+        orderConfirmed = true   // a saved session already fixed its labels
         isDirty = false
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         statusMessage = String(localized: "Opened \(url.lastPathComponent): \(findings.count) findings")

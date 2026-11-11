@@ -11,8 +11,10 @@ finds the same code in the others and tells you how it compares:
 `exact`, `modified`, `moved`, or `absent`. Make any column the
 *golden* patch and read the others as diffs against it. Record findings
 as you go; each one carries a reference such as `main.rs L94:L101`,
-generated from your selection, never typed. Export the review as
-Markdown, ready to paste into a review form, or as JSON for tools.
+generated from your selection, never typed. You can also paste a
+finding as text: the app reads references like `catalog.go L106-L110`
+out of it and marks those lines. Export the review as Markdown, ready
+to paste into a review form, or as JSON for tools.
 
 The name is a pun on Patch Adams, the clown doctor.
 
@@ -40,15 +42,24 @@ welcome screen shows which you have.
 
 ## Quick start
 
+The first time, a short guide walks through these steps; *How does
+this work?* on the opening screen brings it back.
+
 1. **Choose the base**, the code the patches were made against: a
    directory, a `.tar` / `.tar.gz` / `.zip` archive, or a git revision.
-   No base at hand? Add the patches first, then click *Rebuild one from
-   the patches*; every line any patch shows is used, the rest is filler.
+   **Only have the patches?** Click *Build Base from Patches*, or skip
+   it: step 3 builds one for you. Every line any patch shows is used;
+   the rest is left out.
 2. **Add two to four patches**: drop `.patch` or `.diff` files on the
-   window, click *Add Patches…*, or paste a diff with ⌘⌥V.
-3. **Read the request.** Paste the task prompt into the request panel
-   at the top. Findings are judged against it.
-4. **Pick a file** in the tree on the left. It opens in every column.
+   window, click *Add Patches…*, or paste a diff with ⌘⌥V. They fill
+   the slots **A, B, C, D** in order; the arrows change the order.
+3. **Confirm the order.** The screen lists `A = …  B = …`; the letters
+   stay with those patches for the whole review. Press *Confirm Order
+   and Start Review*.
+4. **Fill in the task**: its title (e.g. *Implementation comparison
+   103*), the request — the task prompt findings are judged against —
+   and, if you like, task info and instructions.
+5. **Pick a file** in the tree on the left. It opens in every column.
 
 The app asks once whether to review blind (see [Blind mode](#blind-mode)).
 
@@ -56,13 +67,13 @@ The app asks once whether to review blind (see [Blind mode](#blind-mode)).
 
 | Zone | What it does |
 |---|---|
-| Request panel | The task the patches answer. Open on a new session; ⌘R toggles it. |
+| Task header | The task title, then three boxes: *Request* (the task the patches answer), *Task info* and *Instructions*. ⌘R folds it to the title alone. |
 | File tree | Every file any patch touches, with one status chip per patch: changed, added, deleted, unchanged, or failed to apply. Filter box; *Tests Only* (⌘⌥T). |
-| Columns | One per patch. The header shows the label (A–D) **and** the patch file name, so a label can never be confused with the wrong file. Above each header, a slot: drop a patch file on it, or click it, to replace that column's patch. With fewer than four patches, an *Add a patch* slot sits to the right. |
-| Gutter | Two line numbers per line: base on the left, post-patch on the right. Removed lines show inline, struck through; ⌘⌥− hides them. |
+| Columns | One per patch. The header shows the label (A–D) **and** the patch file name, so a label can never be confused with the wrong file. Above each header, a slot: drop a patch file on it, or click it, to replace that column's patch. With fewer than four patches, a thin column with an add icon sits to the right: click it or drop a patch on it. Every other line has a faint green band, like greenbar paper. |
+| Gutter | Two line numbers per line, at the code's size: base on the left, post-patch on the right. Removed lines show inline, struck through; ⌘⌥− hides them. |
 | Comparison panel | Below the columns. For the selected lines, one pane per other column with a word-level diff against the located lines. |
-| Findings sidebar | On the right: the findings list with filters, the ranking, and the export buttons. |
-| Status bar | The current file, golden-mode diff counts, blind mode, and the session timer. |
+| Findings sidebar | On the right, a quarter of the window: the findings list with filters, the ranking, and the export buttons. |
+| Status bar | The current file, golden-mode diff counts, blind mode, the session timer, and two − / + pairs: **Interface** scale and **Code** size. |
 
 A file that fails to apply stays visible as its raw hunks with a
 warning. Files over 50,000 lines open in a reduced, hunks-only mode.
@@ -125,6 +136,39 @@ file and the reference. Fill in:
 - **Not flagged**: tick it to record that you considered something and
   passed. It shows in the export under its own heading.
 
+### Pasting a finding
+
+Click **+** in the findings sidebar and paste a finding you wrote
+elsewhere. Pick the category and severity; the app finds the evidence
+in the text:
+
+| Write | Means |
+|---|---|
+| `catalog.go L106-L110` | a file, then its lines (`L106:L110` and `L 106` work too) |
+| `main.go L349, L699-L702` | more lines in the same file, until the next file name |
+| `-L40` | removed lines, by base line number |
+| `Implementation A` | the finding's patch (also *Patch*, *Column*, *Version* …) |
+| `(B main.go L640)` | evidence in another patch, to compare implementations |
+
+Each reference shows ✓ when its lines are in that patch. Text with no
+usable evidence turns red, with this guide under it, and *Add Finding*
+stays off until a reference lands.
+
+### Working with a finding
+
+Click a finding in the sidebar:
+
+- Its lines turn **amber** in the code, in every patch it cites.
+- The patches it does not cite fold to thin strips, so its patch takes
+  the width; click a strip to open that patch, or *Close Finding* to
+  bring everything back.
+- It opens in place, at the code's text size: edit the title, text,
+  category, severity and note directly. If you change a line number in
+  the text, the highlight follows.
+- Its references are buttons: each jumps to those lines and opens the
+  patch they are in, folding any other.
+- ✏️ opens the full editor; 🗑 deletes it, after asking.
+
 Findings mark their lines in the column, coloured by severity. `}` and
 `{` walk the focused column's findings; clicking one in the sidebar
 jumps every column there. Right-click a finding for *Same Issue In* to
@@ -145,12 +189,13 @@ patch only in its last section.
 
 ## Sessions and export
 
-- **Save** (⌘S, ⇧⌘S for Save As) writes a `.patchadam` package: a folder
-  holding `session.json` and a copy of every patch, plus a pointer to
-  the base. Columns, golden choice, findings, pins, ranking, manual
-  anchors and blind mode all come back on **Open Session** (⌘⌥O). If
-  the base has moved, the app rebuilds one from the patches and says
-  so.
+- **Save** (⌘S, ⇧⌘S for Save As) writes one `.patchadam` file holding
+  the session and every patch, so it can be mailed or archived and
+  reopened with nothing else. The base is kept as a pointer, not a
+  copy. Columns, golden choice, the task header, findings, pins,
+  ranking, manual anchors and blind mode all come back on **Open
+  Session** (⌘⌥O). If the base has moved, the app rebuilds one from the
+  patches and says so. Sessions saved as folders by 1.0 still open.
 - **Export Markdown** (⌘E) writes the review write-up: the request
   (collapsed), a ranking table, findings grouped by patch in rank order,
   the not-flagged passes, and the rationale. ⌘⌥E copies it instead.
@@ -175,8 +220,9 @@ the network. Nothing you load leaves the machine.
 | ⌘F | Search all columns |
 | ⌘P | Pin the selection |
 | ⌘L | Scroll lock |
-| ⌘= / ⌘− / ⌘0 | Bigger / smaller / actual size code text |
-| ⌘R | Request panel |
+| ⌘= / ⌘− / ⌘0 | Bigger / smaller / actual size code text (content scale) |
+| ⌥⌘= / ⌥⌘− / ⌥⌘0 | Bigger / smaller / actual size interface |
+| ⌘R | Task header |
 | ⌘⌥B | Blind mode |
 | ⇧⌘C | Copy reference |
 | ⌘S / ⇧⌘S | Save session / Save As |
@@ -187,10 +233,11 @@ the network. Nothing you load leaves the machine.
 
 ## Settings
 
-⌘, opens Settings: the code font (any fixed-pitch family) and size
-(9–24 pt; default system monospace at 12 pt), and whether to ask about
-blind mode on a new session. The View menu zooms the same size:
-Bigger (⌘=), Smaller (⌘−), Actual Size (⌘0).
+⌘, opens Settings: the **interface scale** (80–200%: every panel,
+header and footer — larger for a 5K display, smaller for a laptop),
+the code font (any fixed-pitch family) and size (9–24 pt; default
+system monospace at 12 pt), and whether to ask about blind mode on a
+new session. Both scales also sit in the status bar and the View menu.
 
 Code is coloured by language, picked from the file extension (Go, Rust,
 Python, Swift, Zig, JavaScript and TypeScript, C and C++, shell, YAML,

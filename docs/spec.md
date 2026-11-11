@@ -136,7 +136,15 @@ Requirements are numbered FR-n and grouped by feature. "Must" items are required
 - FR-32 (must) Export to Markdown with: the mapping table (label, patch file name, rank), findings grouped by patch with `filename Lstart:Lend` references, and the rationale. The format must match the write-ups in this chat so it pastes into the review form unchanged.
 - FR-33 (must) Export to JSON with the same data plus anchors and confidence scores, for tooling.
 - FR-34 (should) Copy a single finding or a single reference to the clipboard in the reference format.
-- FR-35 (should) Save and reopen the session file (see FR-5).
+- FR-35 (should) Save and reopen the session file (see FR-5). Since 1.1 the session is one `.patchadam` file holding every patch (DECISIONS.md D11).
+
+**Added in 1.1**
+
+- FR-36 (should) Paste a finding as text. The app reads the evidence from it: a file name with a source extension, then `L100` or `L100-L110` (also `L100:L110`, `L 100`, `-L40` for removed lines) referring to that file until the next file name. "Implementation A" (or Patch, Column, Version…) names the finding's patch; a letter before a file, `(B main.go L5)`, puts that evidence in another patch. Text whose evidence cannot be found in the code is marked red with a guide to the format. (Issues #17, #25, #28.)
+- FR-37 (should) Selecting a finding highlights every range it cites, in each cited patch, folds the patches it does not cite, shows its full text editable in place at the code's size, and lists its references as buttons that jump to the lines and open the patch they are in. (Issues #19, #21, #23, #24, #28.)
+- FR-38 (should) A task header holds the task's title, the request, free task info, and the reviewer's instructions; all are saved with the session. (Issue #27.)
+- FR-39 (should) Two scales, each with − and + in the status bar: the interface scale (all window text and panel sizes, 80–200%) and the content scale (the code and finding text, 9–24 pt). (Issue #29.)
+- FR-40 (should) The opening screen shows the four slots A–D, explains the base choice including a base built from the patches, and starts the review only when the reviewer confirms the patch order. (Issue #22.)
 
 ## Reviewer workflow and best practices
 
@@ -228,7 +236,7 @@ The shell never calls an engine directly. The controller owns the session state,
 | Code views | AppKit `NSTextView` wrapped in `NSViewRepresentable`, one per column | SwiftUI `Text` cannot handle 10,000-line files with per-line attributes, gutters, and precise selection. |
 | Git access | Shell out to the system `git` for `show`, `ls-tree`, `cat-file`; no libgit2 | Zero dependencies, matches what the reviewer already has installed. Archives and directories go through Foundation. |
 | Diff engine | Own implementation of Myers with the patience heuristic for lines; LCS on tokens for the word-level panel | No suitable Swift package exists; the algorithm is small and must be tunable. |
-| Persistence | A `.patchadam` directory package: `session.json` plus copies of the patch files and a pointer to the base | Readable, diffable, survives moving the base repository. |
+| Persistence | One `.patchadam` file: JSON holding the session, the full text of every patch, and a pointer to the base (DECISIONS.md D11; folder packages from before still open) | Readable, diffable, one file to mail or archive, survives moving the base repository. |
 
 **Packages**
 

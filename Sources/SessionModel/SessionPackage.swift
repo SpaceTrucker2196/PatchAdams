@@ -1,9 +1,11 @@
 import Foundation
 
-/// The `.patchadam` directory package (spec "Persistence"): `session.json`
-/// plus a copy of every patch, so the review survives moving the base
-/// repository and is diffable in git. The only place the app writes
-/// files (AGENTS.md "Forbidden APIs").
+/// The `.patchadam` session file (spec "Persistence"; DECISIONS.md D11).
+/// One file — pretty JSON holding the session and the full text of
+/// every patch — so a review can be mailed, archived and reopened with
+/// nothing else, and still diffs in git. Sessions saved before D11 are
+/// directory packages (`session.json` plus `patches/`); `read` opens
+/// both. The only place the app writes files (AGENTS.md "Forbidden APIs").
 public enum SessionPackage {
     public static let fileExtension = "patchadam"
     public static let sessionFile = "session.json"
@@ -38,10 +40,38 @@ public enum SessionPackage {
         return d
     }()
 
-    /// Write the package at `url` (created or replaced in place). Patch
-    /// copies are named `<label>-<sourceName>` so two patches with the
-    /// same file name cannot collide.
+    /// The single-file form: the session and its patches, by label.
+    struct Archive: Codable {
+        static let formatName = "patchadam-archive"
+        static let formatVersion = 1
+        var format: String
+        var archiveVersion: Int
+        var session: Session
+        var patches: [String: String]
+    }
+
+    /// Write the session as one file at `url`, replacing it atomically.
     public static func write(_ contents: Contents, to url: URL) throws {
+        var session = contents.session
+        session.saved = Date()
+        for i in session.columns.indices {
+            let label = session.columns[i].label
+            guard contents.patchTexts[label] != nil else { throw PackageError("no patch text for column \(label)") }
+            session.columns[i].patchFile = "\(label)-\(safeFileName(session.columns[i].sourceName))"
+        }
+        let archive = Archive(format: Archive.formatName, archiveVersion: Archive.formatVersion, session: session,
+                              patches: contents.patchTexts.filter { label, _ in session.columns.contains { $0.label == label } })
+        // A directory left by an older save at the same name would block the file.
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            try FileManager.default.removeItem(at: url)
+        }
+        try encoder.encode(archive).write(to: url, options: .atomic)
+    }
+
+    /// Write the pre-D11 directory package. Kept so tests can prove old
+    /// sessions still open; the app never writes it.
+    static func writeDirectoryPackage(_ contents: Contents, to url: URL) throws {
         var session = contents.session
         session.saved = Date()
         let fm = FileManager.default
@@ -60,7 +90,23 @@ public enum SessionPackage {
         try encoder.encode(session).write(to: url.appendingPathComponent(sessionFile), options: .atomic)
     }
 
+    /// Open a session file, or a directory package saved before D11.
     public static func read(from url: URL) throws -> Contents {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            throw PackageError("\(url.lastPathComponent) does not exist")
+        }
+        if !isDirectory.boolValue {
+            let archive = try decoder.decode(Archive.self, from: Data(contentsOf: url))
+            guard archive.format == Archive.formatName else { throw PackageError("\(url.lastPathComponent) is not a Patch Adams session") }
+            guard archive.archiveVersion <= Archive.formatVersion, archive.session.version <= Session.formatVersion else {
+                throw PackageError("\(url.lastPathComponent) was saved by a newer Patch Adams")
+            }
+            for column in archive.session.columns where archive.patches[column.label] == nil {
+                throw PackageError("\(url.lastPathComponent) has no patch text for column \(column.label)")
+            }
+            return Contents(session: archive.session, patchTexts: archive.patches)
+        }
         let data = try Data(contentsOf: url.appendingPathComponent(sessionFile))
         let session = try decoder.decode(Session.self, from: data)
         guard session.version <= Session.formatVersion else {

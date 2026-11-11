@@ -50,11 +50,48 @@ final class SessionModelTests: XCTestCase {
         XCTAssertEqual(back.blind, session.blind)
     }
 
-    func testPackageWritesSessionAndPatchCopiesAndReadsThemBack() throws {
+    func testSessionSavesAsOneFileWithEveryPatchAndReadsBack() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let texts = ["A": "diff --git a/x b/x\n", "B": "diff --git a/y b/y\n", "C": "c\n", "D": "d\n"]
+        var session = Self.sample()
+        session.name = "Implementation comparison 103"
+        session.taskInfo = "Three implementations of the change-semantics plan."
+        session.instructions = "Rank least to most sloppy."
+        try SessionPackage.write(SessionPackage.Contents(session: session, patchTexts: texts), to: file)
+        var isDirectory: ObjCBool = true
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path, isDirectory: &isDirectory))
+        XCTAssertFalse(isDirectory.boolValue, "a session is one file, not a folder")
+        let back = try SessionPackage.read(from: file)
+        XCTAssertEqual(back.patchTexts, texts)
+        XCTAssertEqual(back.session.name, "Implementation comparison 103")
+        XCTAssertEqual(back.session.taskInfo, "Three implementations of the change-semantics plan.")
+        XCTAssertEqual(back.session.instructions, "Rank least to most sloppy.")
+        XCTAssertEqual(back.session.findings.count, 4)
+        XCTAssertNotNil(back.session.saved)
+    }
+
+    func testSavingOverAnOldFolderPackageReplacesIt() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let texts = ["A": "a\n", "B": "b\n", "C": "c\n", "D": "d\n"]
+        try SessionPackage.writeDirectoryPackage(SessionPackage.Contents(session: Self.sample(), patchTexts: texts), to: url)
+        try SessionPackage.write(SessionPackage.Contents(session: Self.sample(), patchTexts: texts), to: url)
+        XCTAssertEqual(try SessionPackage.read(from: url).patchTexts, texts)
+    }
+
+    func testFileThatIsNotASessionIsAnError() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data(#"{"format":"other","archiveVersion":1}"#.utf8).write(to: url)
+        XCTAssertThrowsError(try SessionPackage.read(from: url))
+    }
+
+    func testFolderPackageSavedBeforeD11StillOpens() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
         defer { try? FileManager.default.removeItem(at: dir) }
         let texts = ["A": "diff --git a/x b/x\n", "B": "diff --git a/y b/y\n", "C": "c\n", "D": "d\n"]
-        try SessionPackage.write(SessionPackage.Contents(session: Self.sample(), patchTexts: texts), to: dir)
+        try SessionPackage.writeDirectoryPackage(SessionPackage.Contents(session: Self.sample(), patchTexts: texts), to: dir)
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("session.json").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("patches/A-kettle-1.patch").path))
         let back = try SessionPackage.read(from: dir)

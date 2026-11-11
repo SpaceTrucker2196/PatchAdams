@@ -10,10 +10,16 @@ import ApplyEngine
 final class LineGutterView: NSView {
     weak var textView: NSTextView?
     weak var scrollView: NSScrollView?
-    var lines: [DisplayLine] = [] { didSet { updateWidth(); needsDisplay = true } }
+    var lines: [DisplayLine] = [] { didSet { numberFont = Self.matchingCodeFont(); updateWidth(); needsDisplay = true } }
     var lineStarts: [Int] = []
 
-    private let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+    /// Same point size as the code (Settings and zoom), so a number
+    /// reads at the size of the line beside it. A font change re-sets
+    /// `lines` through the column's content key, which refreshes this.
+    private var numberFont = matchingCodeFont()
+    private static func matchingCodeFont() -> NSFont {
+        NSFont.monospacedDigitSystemFont(ofSize: CodeStyle.font.pointSize, weight: .regular)
+    }
     private let padding: CGFloat = 6
     private var widthConstraint: NSLayoutConstraint?
 
@@ -50,16 +56,6 @@ final class LineGutterView: NSView {
         widthConstraint?.constant = ceil(charWidth * CGFloat(digits * 2) + padding * 3 + 4)
     }
 
-    private func lineIndex(forCharacter offset: Int) -> Int {
-        var lo = 0, hi = lineStarts.count - 1
-        if hi < 0 { return 0 }
-        while lo < hi {
-            let mid = (lo + hi + 1) / 2
-            if lineStarts[mid] <= offset { lo = mid } else { hi = mid - 1 }
-        }
-        return lo
-    }
-
     override func draw(_ dirtyRect: NSRect) {
         SpacetruckerPalette.gutterBackground.setFill()
         bounds.fill()
@@ -83,11 +79,15 @@ final class LineGutterView: NSView {
             var fragmentRange = NSRange()
             let fragment = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: &fragmentRange)
             let charIndex = layout.characterIndexForGlyph(at: glyph)
-            let index = lineIndex(forCharacter: charIndex)
+            let index = CodeStyle.lineIndex(forCharacter: charIndex, in: lineStarts)
             // Document y → gutter y: the gutter's top is the clip view's top.
             let y = fragment.minY + inset - visible.minY
             if index < lines.count, y + fragment.height >= 0, y <= bounds.height {
                 let line = lines[index]
+                if index % 2 == 1 {
+                    SpacetruckerPalette.zebraStripe.setFill()
+                    NSRect(x: 0, y: y, width: bounds.width - 1, height: fragment.height).fill()
+                }
                 switch line.kind {
                 case .added: NSColor.systemGreen.withAlphaComponent(0.6).setFill(); NSRect(x: 0, y: y, width: 3, height: fragment.height).fill()
                 case .removed: NSColor.systemRed.withAlphaComponent(0.6).setFill(); NSRect(x: 0, y: y, width: 3, height: fragment.height).fill()

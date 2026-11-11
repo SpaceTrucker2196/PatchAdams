@@ -35,13 +35,30 @@ struct PatchSlot: View {
         Button {
             if let url = SessionActions.chooseOnePatch() { take(url) }
         } label: {
+            if role == .add {
+                // The add slot is a thin column with only its icon: room for
+                // one more patch, without taking width from the patches.
+                VStack {
+                    Image(systemName: "plus.rectangle.on.rectangle")
+                        .font(.ui(.title3))
+                        .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary)
+                        .padding(.top, UIScale.size(8))
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .background(RoundedRectangle(cornerRadius: 5).fill(isTargeted ? Color.accentColor.opacity(0.2) : Color.clear))
+                .overlay(RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(style: StrokeStyle(lineWidth: isTargeted ? 2 : 1, dash: [4]))
+                    .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary.opacity(0.4)))
+            } else {
             HStack(spacing: 6) {
                 Image(systemName: role == .add ? "plus.rectangle.on.rectangle" : "arrow.down.doc")
                 Text(title).lineLimit(1).truncationMode(.tail)
                 Spacer(minLength: 0)
-                Text(String(localized: "or click")).foregroundStyle(.tertiary)
+                Text(String(localized: "or click")).foregroundStyle(.tertiary).lineLimit(1).layoutPriority(-1)
             }
-            .font(.caption)
+            .font(.ui(.callout))
             .padding(.horizontal, 8).padding(.vertical, 5)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -49,6 +66,7 @@ struct PatchSlot: View {
             .overlay(RoundedRectangle(cornerRadius: 5)
                 .strokeBorder(style: StrokeStyle(lineWidth: isTargeted ? 2 : 1, dash: [4]))
                 .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary.opacity(0.6)))
+            }
         }
         .buttonStyle(.plain)
         .help(column.map { String(localized: "Replace \(controller.displayName($0)) with another patch file. Click to choose one, or drop it here.") }
