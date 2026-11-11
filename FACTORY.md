@@ -126,8 +126,10 @@ the blind-prompt flag. The hooks run in stages (+3 s session
 setup, +5 s selection, +8 s persist, +11 s screenshot) because a golden
 switch re-lays the text views and would drop a selection made in the
 same instant.
-1.1 flags: `--task "title|info|instructions"` fills the task header;
-`--paste-finding "text"` adds a finding the way the + popup does, and
+1.1 flags: `--task "title|info|instructions|request"` fills the task
+header; `--paste-finding "text"` (repeatable; a leading
+`[material/dead or unrelated code]` sets severity and category) adds a
+finding the way the + popup does, and
 `--paste-popup "text"` opens that popup prefilled; `--goto-finding 1`
 clicks a finding in the sidebar; `--goto-evidence 2,1` clicks the open
 finding's reference buttons in order, a second apart; `--welcome`
@@ -137,6 +139,9 @@ argument-domain default, not saved) runs at an interface scale.
 To capture a sheet, which `--shot` cannot see, list the app's own
 windows with `CGWindowListCopyWindowInfo` and run `screencapture -l
 <id>` on each — never a whole-screen capture.
+The README screenshots (`docs/screenshots/`) come from `--demo` with
+`--task`, six `--paste-finding`s, `--rank` and `--rationale`, taken this
+way at `-interfaceScale 1.0 -codeFontSize 13`; only invented data (D10).
 Every step logs `hook: …` to stderr.
 
 ## Code visualization (cygnus)

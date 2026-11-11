@@ -23,7 +23,7 @@ import SyntaxHighlight
 ///   --no-base              drop the base after loading, to show the base choice (issue #22)
 ///   --welcome             stay on the opening screen (patch order, onboarding) for --shot
 ///   --goto-evidence 2,1    click the open finding's reference buttons in order (issues #24, #28)
-///   --task "title|info|instructions"  fill the task header (issue #27)
+///   --task "title|info|instructions|request"  fill the task header (issue #27)
 ///   --goto-finding 1       click finding 1 in the sidebar (issue #19)
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
@@ -126,11 +126,23 @@ enum DebugHooks {
                 controller.sessionName = parts[0]
                 if parts.count > 1 { controller.taskInfo = parts[1] }
                 if parts.count > 2 { controller.taskInstructions = parts[2] }
+                if parts.count > 3 { controller.requestText = parts[3] }
                 log("task \(controller.sessionName)")
             }
-            if let text = value(after: "--paste-finding"), let column = controller.column(namedIn: text) ?? controller.focusedColumn {
+            // Repeatable; "[material/dead or unrelated code] text" sets severity and category.
+            for (i, arg) in args.enumerated() where arg == "--paste-finding" && i + 1 < args.count {
+                var text = args[i + 1]
+                var severity = Severity.minor
+                var category = controller.categories.first ?? "other"
+                if text.hasPrefix("["), let close = text.firstIndex(of: "]") {
+                    let tag = text[text.index(after: text.startIndex)..<close].split(separator: "/", maxSplits: 1).map(String.init)
+                    if let first = tag.first, let s = Severity(rawValue: first) { severity = s }
+                    if tag.count > 1 { category = tag[1] }
+                    text = String(text[text.index(after: close)...]).trimmingCharacters(in: .whitespaces)
+                }
+                guard let column = controller.column(namedIn: text) ?? controller.focusedColumn else { continue }
                 let before = controller.findings.count
-                controller.addPastedFinding(text, column: column, category: controller.categories.first ?? "other", severity: .minor)
+                controller.addPastedFinding(text, column: column, category: category, severity: severity)
                 log("paste finding → \(controller.findings.count > before ? controller.findings.last!.reference : "no evidence resolved")")
             }
             if let text = value(after: "--paste-popup") {

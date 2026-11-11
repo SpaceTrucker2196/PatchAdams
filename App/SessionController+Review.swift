@@ -121,14 +121,21 @@ extension SessionController {
     func resolve(_ evidence: Evidence, in column: PatchColumn) -> (path: String, lines: Range<Int>)? {
         let name = evidence.fileName.hasPrefix("./") ? String(evidence.fileName.dropFirst(2)) : evidence.fileName
         let paths = Set(columns.flatMap { $0.patch.files.map(\.path) })
-        guard let path = paths.contains(name) ? name : paths.sorted().first(where: { $0.hasSuffix("/" + name) }) else { return nil }
-        let lines = displayLines(column: column, path: path)
-        let hits = lines.indices.filter { i in
-            guard let n = evidence.removedSide ? lines[i].baseLine : lines[i].postLine else { return false }
-            return (evidence.start...evidence.end).contains(n)
+        // A stored reference keeps only the file name, and two files can
+        // share one (`dto/brew.go`, `handler/brew.go`): try the exact
+        // path, then the file on screen, then the rest, and take the
+        // first that has the lines.
+        let candidates = paths.contains(name) ? [name]
+            : paths.filter { $0.hasSuffix("/" + name) }.sorted { a, b in (a == selectedPath) != (b == selectedPath) ? a == selectedPath : a < b }
+        for path in candidates {
+            let lines = displayLines(column: column, path: path)
+            let hits = lines.indices.filter { i in
+                guard let n = evidence.removedSide ? lines[i].baseLine : lines[i].postLine else { return false }
+                return (evidence.start...evidence.end).contains(n)
+            }
+            if let first = hits.first, let last = hits.last { return (path, first..<last + 1) }
         }
-        guard let first = hits.first, let last = hits.last else { return nil }
-        return (path, first..<last + 1)
+        return nil
     }
 
     /// The column pasted text names — "Implementation A", or "Patch 2"

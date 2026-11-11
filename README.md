@@ -18,6 +18,13 @@ to paste into a review form, or as JSON for tools.
 
 The name is a pun on Patch Adams, the clown doctor.
 
+![Patch Adams with four patches open side by side, the task header above, the file tree on the left, and six findings with a ranking on the right](docs/screenshots/overview.png)
+
+*Four implementations of one task, side by side. The task header holds
+the title, the request, task info and instructions; the file tree shows
+which patches touch each file; findings and the ranking sit on the
+right. All screenshots use the invented kettle-service demo.*
+
 - [Install](#install)
 - [Quick start](#quick-start)
 - [The window](#the-window)
@@ -60,6 +67,12 @@ this work?* on the opening screen brings it back.
    103*), the request — the task prompt findings are judged against —
    and, if you like, task info and instructions.
 5. **Pick a file** in the tree on the left. It opens in every column.
+
+![The opening screen: step 1 offers "I have the code" or "I only have the patches", step 2 shows slots A to D filled with four patches, step 3 confirms the order](docs/screenshots/opening-screen.png)
+
+*The opening screen. Pick real code or build the base from the patches;
+the patches fill A, B, C, D in order; the review starts once you confirm
+which letter is which patch.*
 
 The app asks once whether to review blind (see [Blind mode](#blind-mode)).
 
@@ -150,9 +163,18 @@ in the text:
 | `Implementation A` | the finding's patch (also *Patch*, *Column*, *Version* …) |
 | `(B main.go L640)` | evidence in another patch, to compare implementations |
 
-Each reference shows ✓ when its lines are in that patch. Text with no
-usable evidence turns red, with this guide under it, and *Add Finding*
-stays off until a reference lands.
+![The Paste Finding popup: the pasted text, patch C picked from the text, category and severity, and two references each marked with a check](docs/screenshots/paste-finding.png)
+
+*Pasting a finding. "Implementation C" picks the patch; each reference
+gets a ✓ once its lines are found in that patch.*
+
+Text with no usable evidence turns red, with a guide under it, and
+*Add Finding* stays off until a reference lands.
+
+![The Paste Finding popup with a red border and a red box titled "No file and line numbers found" listing the evidence formats](docs/screenshots/evidence-guide.png)
+
+*No file and line numbers in the text: the box turns red and shows how
+to write evidence.*
 
 ### Working with a finding
 
@@ -168,6 +190,14 @@ Click a finding in the sidebar:
 - Its references are buttons: each jumps to those lines and opens the
   patch they are in, folding any other.
 - ✏️ opens the full editor; 🗑 deletes it, after asking.
+
+![A finding open in the sidebar: patches A and B side by side with the finding's lines in amber, patches C and D folded to thin strips, reference buttons under the finding's text, and the comparison panel below](docs/screenshots/finding-focus.png)
+
+*A finding in focus. Its lines are amber; it cites patch B too, so A and
+B stand side by side while C and D fold away. The buttons under its
+text — `brew.go L33:L44`, `queue.go L20:L28`, `B brew.go L33:L40` —
+jump to each piece of evidence. The comparison panel shows where the
+same code landed in every other patch.*
 
 Findings mark their lines in the column, coloured by severity. `}` and
 `{` walk the focused column's findings; clicking one in the sidebar
@@ -238,6 +268,11 @@ header and footer — larger for a 5K display, smaller for a laptop),
 the code font (any fixed-pitch family) and size (9–24 pt; default
 system monospace at 12 pt), and whether to ask about blind mode on a
 new session. Both scales also sit in the status bar and the View menu.
+
+![The status bar controls: Interface minus 100% plus, Code minus 13 pt plus](docs/screenshots/scale-controls.png)
+
+*The two scales in the status bar. Click the number to go back to
+100% or 12 pt.*
 
 Code is coloured by language, picked from the file extension (Go, Rust,
 Python, Swift, Zig, JavaScript and TypeScript, C and C++, shell, YAML,
