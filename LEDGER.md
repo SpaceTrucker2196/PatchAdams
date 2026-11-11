@@ -27,3 +27,4 @@ whole ledger: `ledger.py --energy-total`.
 | f4af0c2 | 2026-11-03T18:41:17Z | claude-opus-5-5 | 100 | 25355 | 4078142 | 300888 | 3.7302 | Developer ID signing + notarization for the release DMG (refs #15) |
 | 4944567 | 2026-11-03T20:29:05Z | claude-opus-5-5 | 218 | 47636 | 11428226 | 72817 | 3.8218 | Release 1.0.1: Developer ID signed + notarized DMG from CI (closes #15) |
 | 0f2a623 | 2026-11-11T18:24:16Z | claude-opus-5-5 | 1174 | 491543 | 149255601 | 1069688 | 48.2442 | 1.1.0: paste findings, focus a finding, one-file sessions, interface scale (#16- |
+| 4e42be5 | 2026-11-11T18:52:21Z | claude-opus-5-5 | 152 | 58878 | 36269794 | 119569 | 9.3887 | README screenshots and captions; fix evidence in same-named files (#30) |
