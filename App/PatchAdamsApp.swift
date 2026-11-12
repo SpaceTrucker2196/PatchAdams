@@ -17,7 +17,7 @@ struct PatchAdamsApp: App {
     @State private var controller = SessionController()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: SessionActions.mainWindowID) {
             MainView(controller: controller)
                 .frame(minWidth: 1000, minHeight: 640)
         }
@@ -34,16 +34,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         if let icon = NSImage(named: "AppIcon") { NSApp.applicationIconImage = icon }
     }
+
+    /// One review window: closing it quits, so the app is never left
+    /// running with no window, where New Session had nothing to show
+    /// its opening screen in (issue #32).
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    /// Some launches came up with no window and the app idling (issue
+    /// #32, and #8 before it). Check once the scene has had time, and
+    /// open the review window if it is missing.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { SessionActions.ensureMainWindow() }
+    }
 }
 
 /// Menu bar and keyboard (spec "Keyboard"). Every action is reachable
 /// from the menu, so VoiceOver and the keyboard see the same set.
 struct SessionCommands: Commands {
     let controller: SessionController
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        // Keep SwiftUI's window opener where the app delegate can reach it.
+        let _ = SessionActions.storeWindowOpener(openWindow)
         CommandGroup(replacing: .newItem) {
-            Button(String(localized: "New Session")) { controller.newSession() }
+            Button(String(localized: "New Session")) {
+                controller.newSession()
+                SessionActions.ensureMainWindow()
+            }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             Divider()
             Button(String(localized: "Open Base…")) { SessionActions.openBase(controller) }

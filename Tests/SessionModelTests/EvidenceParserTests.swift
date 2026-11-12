@@ -60,6 +60,12 @@ final class EvidenceParserTests: XCTestCase {
         XCTAssertEqual(EvidenceParser.parse(evidence.reference), [Evidence(fileName: "main.go", start: 699, end: 702, label: "B")])
     }
 
+    func testEachReferenceKnowsWhereItIsWritten() {
+        let text = "Repeats it (B main.go L699-L702, L710) and util.go L5."
+        let sources = EvidenceParser.parseWithSources(text).map { (text as NSString).substring(with: $0.source) }
+        XCTAssertEqual(sources, ["B main.go L699-L702", "L710", "util.go L5"])
+    }
+
     func testLeadingMinusIsTheRemovedSide() {
         XCTAssertEqual(EvidenceParser.parse("main.rs -L40:L42 was deleted"),
                        [Evidence(fileName: "main.rs", start: 40, end: 42, removedSide: true)])

@@ -152,9 +152,17 @@ final class SyntaxHighlightTests: XCTestCase {
 
     func testTenThousandLinesScanQuickly() {
         let lines = (0..<10_000).map { #"func stress\#($0)(x int) string { return fmt.Sprintf("%d", x * 2) } // synthetic"# }
-        let start = Date()
+        // CPU time of this thread, not the wall clock: on a busy Mac (load
+        // 70+) the wall clock failed this at 2.2 s while the scan itself
+        // was unchanged. The scan runs on this thread.
+        func cpuSeconds() -> Double {
+            var t = timespec()
+            clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t)
+            return Double(t.tv_sec) + Double(t.tv_nsec) / 1e9
+        }
+        let start = cpuSeconds()
         let tokens = SyntaxHighlighter.tokens(lines: lines, language: .go)
         XCTAssertEqual(tokens.count, 10_000)
-        XCTAssertLessThan(Date().timeIntervalSince(start), 1.0)
+        XCTAssertLessThan(cpuSeconds() - start, 1.0)
     }
 }

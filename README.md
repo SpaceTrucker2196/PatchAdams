@@ -185,10 +185,14 @@ Click a finding in the sidebar:
   the width; click a strip to open that patch, or *Close Finding* to
   bring everything back.
 - It opens in place, at the code's text size: edit the title, text,
-  category, severity and note directly. If you change a line number in
-  the text, the highlight follows.
-- Its references are buttons: each jumps to those lines and opens the
-  patch they are in, folding any other.
+  category, severity and note directly, with the system's spelling and
+  grammar checking, the Find bar (⌘F), undo, and the usual right-click
+  tools. If you change a line number in the text, the highlight follows.
+- Its references are buttons, and the same references inside its text
+  are links: either jumps to those lines, opens the patch they are in
+  (folding any other), and washes the words in the text amber.
+- Findings you have not clicked show their full text; a click opens one
+  for editing.
 - ✏️ opens the full editor; 🗑 deletes it, after asking.
 
 ![A finding open in the sidebar: patches A and B side by side with the finding's lines in amber, patches C and D folded to thin strips, reference buttons under the finding's text, and the comparison panel below](docs/screenshots/finding-focus.png)

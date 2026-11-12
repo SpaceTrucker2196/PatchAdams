@@ -68,21 +68,30 @@ public enum EvidenceParser {
         return nil
     }
 
-    public static func parse(_ text: String) -> [Evidence] {
+    public static func parse(_ text: String) -> [Evidence] { parseWithSources(text).map(\.evidence) }
+
+    /// Each piece of evidence with where it is written in `text` (UTF-16,
+    /// as `NSRange`): the line reference, reaching back over its file
+    /// name when it is the first reference after that name (issue #31).
+    public static func parseWithSources(_ text: String) -> [(evidence: Evidence, source: NSRange)] {
         let ns = text as NSString
         var file: String?
+        var fileRange: NSRange?   // the file name not yet claimed by a reference
         var label: String?   // the patch letter written with the current file, if any
-        var out: [Evidence] = []
+        var out: [(evidence: Evidence, source: NSRange)] = []
         for match in pattern.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
             func group(_ name: String) -> String? {
                 let r = match.range(withName: name)
                 return r.location == NSNotFound ? nil : ns.substring(with: r)
             }
             if let name = group("file"), let ext = group("ext") {
-                if sourceExtensions.contains(ext.lowercased()) { file = name; label = group("label") }
+                if sourceExtensions.contains(ext.lowercased()) { file = name; label = group("label"); fileRange = match.range }
             } else if let file, let start = group("start").flatMap({ Int($0) }) {
                 let end = group("end").flatMap { Int($0) } ?? start
-                out.append(Evidence(fileName: file, start: min(start, end), end: max(start, end), removedSide: group("minus") != nil, label: label))
+                let reference = match.range(withName: "ref")
+                let source = fileRange.map { NSUnionRange($0, reference) } ?? reference
+                fileRange = nil
+                out.append((Evidence(fileName: file, start: min(start, end), end: max(start, end), removedSide: group("minus") != nil, label: label), source))
             }
         }
         return out

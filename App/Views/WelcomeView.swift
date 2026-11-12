@@ -306,6 +306,23 @@ struct GitRevisionSheet: View {
 /// Panels and pasteboard reads shared by the welcome view and the menu.
 @MainActor
 enum SessionActions {
+    static let mainWindowID = "main"
+    private static var openWindow: OpenWindowAction?
+
+    static func storeWindowOpener(_ action: OpenWindowAction) { openWindow = action }
+
+    /// Bring the review window forward, or open it when there is none:
+    /// after New Session, and once after launch (issue #32).
+    static func ensureMainWindow() {
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix(mainWindowID) == true }) {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            openWindow?(id: mainWindowID)
+        }
+    }
+
+
     static func openBase(_ controller: SessionController) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true

@@ -306,6 +306,7 @@ extension SessionController {
         guard let column = columns.first(where: { $0.label == finding.label }) else { return }
         selectedFindingID = finding.id
         openFindingLabels = [finding.label]
+        activeEvidenceSource = nil
         selectedPath = finding.path
         selections[column.id] = finding.lines.range
         selectionIsEmpty[column.id] = false
@@ -316,7 +317,8 @@ extension SessionController {
 
     /// A reference chip in an open finding: show that file in the
     /// finding's column and scroll to the lines (issue #24).
-    func goTo(evidence: Evidence, of finding: Finding) {
+    func goTo(evidence: Evidence, of finding: Finding, source: NSRange? = nil) {
+        activeEvidenceSource = source
         guard let own = columns.first(where: { $0.label == finding.label }) else { return }
         let column = column(for: evidence, default: own)
         guard let hit = resolve(evidence, in: column) else {

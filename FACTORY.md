@@ -134,7 +134,9 @@ finding the way the + popup does, and
 clicks a finding in the sidebar; `--goto-evidence 2,1` clicks the open
 finding's reference buttons in order, a second apart; `--welcome`
 stays on the opening screen (no confirm-order step), and `--no-base`
-drops the base to show the base choice. `-interfaceScale 1.4` (an
+drops the base to show the base choice; `--new-session` fires the real
+File > New Session item; `--click-text-link 3` clicks the third
+reference link inside the open finding's text through AppKit. `-interfaceScale 1.4` (an
 argument-domain default, not saved) runs at an interface scale.
 To capture a sheet, which `--shot` cannot see, list the app's own
 windows with `CGWindowListCopyWindowInfo` and run `screencapture -l

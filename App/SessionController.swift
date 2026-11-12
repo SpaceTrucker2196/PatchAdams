@@ -180,6 +180,9 @@ final class SessionController {
     /// While a finding is open, the patches shown full width: its own,
     /// plus any whose evidence the reviewer jumped to (issue #28).
     var openFindingLabels: Set<String> = []
+    /// Where the last clicked reference is written in the open finding's
+    /// text, washed amber there (issue #31).
+    var activeEvidenceSource: NSRange?
     var findingFilter = FindingFilter()
     var sessionStart = Date()
     var isDirty = false
@@ -374,6 +377,15 @@ final class SessionController {
         sessionStart = Date()
         isDirty = false
         orderConfirmed = false
+        // Nothing from the last session may linger on the opening screen (issue #32).
+        errorMessage = nil
+        statusMessage = nil
+        selectedFindingID = nil
+        openFindingLabels = []
+        activeEvidenceSource = nil
+        showPasteFinding = false
+        pasteFindingText = ""
+        focusedColumnID = nil
     }
 
     /// Open patch files against a base rebuilt from them (debug hooks).

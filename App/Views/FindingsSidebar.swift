@@ -155,8 +155,11 @@ struct FindingRow: View {
     /// Finding text reads at the code's size (Settings and zoom).
     @AppStorage(CodeStyle.fontSizeKey) private var fontSize = CodeStyle.defaultFontSize
 
+    private var activeSource: NSRange? { controller.activeEvidenceSource }
+
     private var textFont: Font { .system(size: CGFloat(fontSize)) }
     private var isSelected: Bool { controller.selectedFindingID == finding.id }
+
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -195,20 +198,18 @@ struct FindingRow: View {
                     .font(textFont.bold()).textFieldStyle(.plain)
                 let checked = evidenceChecks
                 let missing = !checked.contains { $0.found }
-                // Grows to the whole text: a hidden copy of the text sets
-                // the height, the editor fills it, so nothing scrolls.
-                ZStack(alignment: .topLeading) {
-                    Text(finding.description.isEmpty ? " " : finding.description + "\n")
-                        .font(Font(CodeStyle.font))
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .hidden()
-                    TextEditor(text: field(\.description))
-                        .scrollDisabled(true)
+                // The text, editable, with each reference a link that
+                // jumps like its button (issue #33); grows to fit.
+                FindingTextView(text: field(\.description),
+                                sources: checked.compactMap(\.source),
+                                active: activeSource) { index in
+                    let linked = checked.filter { $0.source != nil }
+                    guard linked.indices.contains(index) else { return }
+                    controller.goTo(evidence: linked[index].evidence, of: finding, source: linked[index].source)
                 }
+                .padding(.horizontal, 4).padding(.vertical, 2)
                 .codeEditorStyle(invalid: missing)
-                .frame(minHeight: UIScale.size(80))
+                .onChange(of: finding.description) { controller.activeEvidenceSource = nil }
                 if missing {
                     EvidenceHelp(found: !checked.isEmpty, patch: controller.displayLabel(finding.label))
                 }
@@ -216,10 +217,12 @@ struct FindingRow: View {
                 // this patch shows red.
                 FlowLayout(spacing: 6) {
                     ForEach(Array(checked.enumerated()), id: \.offset) { _, item in
-                        Button(item.evidence.reference) { controller.goTo(evidence: item.evidence, of: finding) }
+                        Button(item.evidence.reference) {
+                            controller.goTo(evidence: item.evidence, of: finding, source: item.source)
+                        }
                             .font(.system(size: CGFloat(fontSize) - 2, design: .monospaced))
                             .buttonStyle(.bordered)
-                            .tint(item.found ? nil : .red)
+                            .tint(item.found ? (item.source != nil && item.source == activeSource ? Color(nsColor: SpacetruckerPalette.amber) : nil) : .red)
                             .foregroundStyle(item.found ? Color.primary : Color.red)
                             .help(item.found ? String(localized: "Show these lines in patch \(controller.displayLabel(finding.label))")
                                              : String(localized: "Not in patch \(controller.displayLabel(finding.label))"))
@@ -227,9 +230,17 @@ struct FindingRow: View {
                 }
                 TextField(String(localized: "Note"), text: field(\.note)).font(.ui(.callout)).textFieldStyle(.roundedBorder)
             } else {
-                Text(finding.title).font(textFont).lineLimit(2)
+                // The whole finding, not a preview (issue #34); a click opens it for editing.
+                Text(finding.description.isEmpty ? finding.title : finding.description)
+                    .font(textFont)
+                    .fixedSize(horizontal: false, vertical: true)
                     .strikethrough(finding.notFlagged)
-                Text(finding.reference).font(.ui(.callout).monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                if !finding.note.isEmpty {
+                    Text(String(localized: "Note: \(finding.note)")).font(.ui(.callout)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(finding.reference).font(.ui(.callout).monospaced()).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.vertical, 2)
@@ -238,11 +249,13 @@ struct FindingRow: View {
     /// The references the finding cites — from its text when the text
     /// has any, else its stored reference (a ⌘N finding) — and whether
     /// each lands in the finding's patch.
-    private var evidenceChecks: [(evidence: Evidence, found: Bool)] {
-        let fromText = EvidenceParser.parse(finding.description)
-        let all = fromText.isEmpty ? EvidenceParser.parse(finding.reference) : fromText
-        guard let column = controller.columns.first(where: { $0.label == finding.label }) else { return all.map { ($0, false) } }
-        return all.map { ($0, controller.resolve($0, in: controller.column(for: $0, default: column)) != nil) }
+    private var evidenceChecks: [(evidence: Evidence, found: Bool, source: NSRange?)] {
+        let fromText = EvidenceParser.parseWithSources(finding.description)
+        let all: [(evidence: Evidence, source: NSRange?)] = fromText.isEmpty
+            ? EvidenceParser.parse(finding.reference).map { ($0, nil) }
+            : fromText.map { ($0.evidence, $0.source) }
+        guard let column = controller.columns.first(where: { $0.label == finding.label }) else { return all.map { ($0.evidence, false, $0.source) } }
+        return all.map { ($0.evidence, controller.resolve($0.evidence, in: controller.column(for: $0.evidence, default: column)) != nil, $0.source) }
     }
 
     /// A binding to one field of this finding in the session.
@@ -346,9 +359,13 @@ struct FindingForm: View {
                 }
                 .pickerStyle(.segmented)
                 Text(String(localized: "Description")).font(.ui(.callout)).foregroundStyle(.secondary)
-                TextEditor(text: binding.finding.description)
-                    .codeEditorStyle(invalid: false)
-                    .frame(minHeight: UIScale.size(160), maxHeight: UIScale.size(360))
+                // Same editor as the sidebar: spelling, Find, undo (issue #34).
+                ScrollView {
+                    FindingTextView(text: binding.finding.description, sources: [], active: nil) { _ in }
+                        .padding(.horizontal, 4).padding(.vertical, 2)
+                }
+                .codeEditorStyle(invalid: false)
+                .frame(minHeight: UIScale.size(160), maxHeight: UIScale.size(360))
                 Text(String(localized: "Correctness note (parked, not a quality label)")).font(.ui(.callout)).foregroundStyle(.secondary)
                 TextField(String(localized: "Note"), text: binding.finding.note).textFieldStyle(.roundedBorder)
                 Toggle(String(localized: "Not flagged — considered and passed"), isOn: binding.finding.notFlagged)

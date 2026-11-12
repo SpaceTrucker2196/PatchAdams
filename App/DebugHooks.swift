@@ -24,6 +24,8 @@ import SyntaxHighlight
 ///   --welcome             stay on the opening screen (patch order, onboarding) for --shot
 ///   --goto-evidence 2,1    click the open finding's reference buttons in order (issues #24, #28)
 ///   --task "title|info|instructions|request"  fill the task header (issue #27)
+///   --new-session          fire File > New Session after the other steps (issue #32)
+///   --click-text-link 3    click the 3rd reference link inside the open finding's text (issue #33)
 ///   --goto-finding 1       click finding 1 in the sidebar (issue #19)
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
@@ -155,13 +157,41 @@ enum DebugHooks {
                 log("goto finding \(n) → \(controller.findings[n - 1].reference)")
             }
             if let list = value(after: "--goto-evidence"), let finding = controller.selectedFinding {
-                let all = EvidenceParser.parse(finding.reference)
+                // From the finding's text when it has references, as the buttons are.
+                let sources = EvidenceParser.parseWithSources(finding.description)
+                let all = sources.isEmpty ? EvidenceParser.parse(finding.reference) : sources.map(\.evidence)
                 // One click a second apart, as a person would.
                 for (k, n) in list.split(separator: ",").compactMap({ Int($0) }).enumerated() where all.indices.contains(n - 1) {
                     DispatchQueue.main.asyncAfter(deadline: .now() + Double(k)) {
-                        controller.goTo(evidence: all[n - 1], of: finding)
+                        controller.goTo(evidence: all[n - 1], of: finding, source: sources.isEmpty ? nil : sources[n - 1].source)
                         log("goto evidence \(n) → \(all[n - 1].reference) in \(controller.selectedPath ?? "none"); open \(controller.openFindingLabels.sorted())")
                     }
+                }
+            }
+            if args.contains("--new-session") {
+                // Issue #32: fire the real File > New Session item mid-review.
+                let file = NSApp.mainMenu?.items.first { $0.title == "File" }?.submenu
+                if let item = file?.items.first(where: { $0.title == "New Session" }), let menu = item.menu {
+                    menu.performActionForItem(at: menu.index(of: item))
+                }
+                log("after New Session: hasSession \(controller.hasSession), columns \(controller.columns.count), findings \(controller.findings.count), selected finding \(controller.selectedFindingID != nil), error \(controller.errorMessage ?? "none")")
+            }
+            if let n = value(after: "--click-text-link").flatMap(Int.init) {
+                // Issue #33: click the Nth reference link in the open finding's text, as AppKit does.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    @MainActor func textViews(_ view: NSView) -> [NSTextView] {
+                        if let text = view as? NSTextView { return [text] }
+                        return view.subviews.flatMap { textViews($0) }
+                    }
+                    let views = NSApp.windows.compactMap(\.contentView).flatMap(textViews).filter { $0.delegate is FindingTextView.Coordinator }
+                    guard let view = views.first, let storage = view.textStorage else { log("click link: no finding text view"); return }
+                    var links: [(URL, Int)] = []
+                    storage.enumerateAttribute(.link, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+                        if let url = value as? URL { links.append((url, range.location)) }
+                    }
+                    guard links.indices.contains(n - 1) else { log("click link: only \(links.count) links"); return }
+                    view.clicked(onLink: links[n - 1].0, at: links[n - 1].1)
+                    log("click link \(n) → \(controller.selectedPath ?? "none"); open \(controller.openFindingLabels.sorted()); highlight \(controller.activeEvidenceSource.map { "\($0.location)+\($0.length)" } ?? "none")")
                 }
             }
             if let n = value(after: "--zoom").flatMap(Int.init) {
