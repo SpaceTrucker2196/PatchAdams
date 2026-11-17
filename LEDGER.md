@@ -35,3 +35,4 @@ whole ledger: `ledger.py --energy-total`.
 | 35814c2 | 2026-11-17T16:32:25Z | claude-fable-5-1 | 716 | 101777 | 7544240 | 139671 | 9.7755 | Chips grouped by category heading (#39); sloth-ios session |
 | 3fbf7bc | 2026-11-17T16:32:29Z | claude-fable-5-1 | 32 | 1856 | 292923 | 2346 | 0.2133 | Release check banner (#35) + full-size task fields (#40); sloth-ios session |
 | 743fd3d | 2026-11-17T16:34:30Z | claude-fable-5-1 | 262 | 8262 | 3287727 | 20427 | 1.6462 | Copy icon per finding (#41); sloth-ios session |
+| ec9ef73 | 2026-11-17T16:41:14Z | claude-fable-5-1 | 134 | 4823 | 2142705 | 4536 | 0.8689 | Release 1.2.0; sloth-ios session |
