@@ -30,3 +30,4 @@ whole ledger: `ledger.py --energy-total`.
 | 4e42be5 | 2026-11-11T18:52:21Z | claude-opus-5-5 | 152 | 58878 | 36269794 | 119569 | 9.3887 | README screenshots and captions; fix evidence in same-named files (#30) |
 | 4806b98 | 2026-11-11T19:55:34Z | claude-opus-5-5 | 18 | 5399 | 4548076 | 2730 | 1.0395 | Release 1.1.1 (#30) |
 | 7141a9f | 2026-11-12T22:35:56Z | claude-opus-5-5 | 336 | 156414 | 84894612 | 6315016 | 70.6287 | Release 1.1.2: clickable references, spelling, New Session window (#31-#34); win |
+| 87dd9e7 | 2026-11-17T16:08:42Z | claude-fable-5-1 | 2540 | 192791 | 13319223 | 343442 | 19.8636 | Prose spelling + reference wash (#36 #37); window --since #36 ask, sloth-ios ses |
