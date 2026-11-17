@@ -169,6 +169,8 @@ extension SessionController {
     func addPastedFindings(_ text: String, column: PatchColumn, category: String, severity: Severity) -> Int {
         let before = findings.count
         for part in CategoryHeadings.split(text, categories: categories) {
+            // A heading not in the list names a new category (issue #42).
+            if let name = part.category, !categories.contains(name) { categories.append(name) }
             addPastedFinding(part.text, column: self.column(namedIn: part.text) ?? column,
                              category: part.category ?? category, severity: severity)
         }

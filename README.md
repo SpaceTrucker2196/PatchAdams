@@ -163,7 +163,7 @@ for the finding it starts:
 | `-L40` | removed lines, by base line number |
 | `Implementation A` | the finding's patch (also *Patch*, *Column*, *Version* …) |
 | `(B main.go L640)` | evidence in another patch, to compare implementations |
-| `Unneeded backwards compatibility: …` | a category name or slug and a colon at the start of a line: that category, and a new finding. Several headings, several findings |
+| `Unneeded backwards compatibility: …` | a short label and a colon at the start of a line: that category, and a new finding. A known category by name or slug, else a new one named by the label (`Bad Tests:`). Several headings, several findings |
 
 ![The Paste Finding popup: the pasted text, patch C picked from the text, category and severity, and two references each marked with a check](docs/screenshots/paste-finding.png)
 

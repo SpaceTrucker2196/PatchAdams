@@ -83,14 +83,32 @@ public struct CategorySection: Sendable, Hashable {
     }
 }
 
-/// A line that opens with a category name or slug and a colon —
-/// "Unneeded Backwards Compatibility: …", "unneeded_backwards_compatibility: …",
-/// "- **Too many branches**: …" — names the category and starts a finding
-/// (issue #38). Text before the first heading is a finding of its own with
-/// no category; a paste with no heading is one finding.
+/// A line that opens with a short label and a colon — "Unneeded
+/// Backwards Compatibility: …", "unneeded_backwards_compatibility: …",
+/// "- **Too many branches**: …", "Bad Tests: …" — names a category and
+/// starts a finding (issues #38, #42). A label that is a known category,
+/// by name or slug, gives that category; any other label of up to five
+/// words is a category of its own. Not labels: file references, URLs,
+/// and patch names ("Implementation A:"). Text before the first heading
+/// is a finding of its own with no category; a paste with no heading is
+/// one finding.
 public enum CategoryHeadings {
     private static let heading = try! NSRegularExpression(pattern:
-        #"^\s*(?:[-*+#>]+\s*)?[*_]{0,2}\s*(?<name>[A-Za-z][A-Za-z _\-]*?)\s*[*_]{0,2}\s*:\s*(?<rest>.*)$"#)
+        #"^\s*(?:[-*+#>]+\s*)?[*_]{0,2}\s*(?<name>[A-Za-z][A-Za-z _\-]*?)\s*[*_]{0,2}\s*:(?:\s+(?<rest>.*)|(?<empty>))$"#)
+    private static let patchName = try! NSRegularExpression(pattern:
+        #"^(?:implementation|patch|column|version|solution|response|candidate)\b"#, options: [.caseInsensitive])
+
+    /// The category a heading label names: a known one, else the label
+    /// itself in the list's lower-case style; nil when the label is not a
+    /// heading (too long, or a patch name).
+    static func category(for label: String, known: [String: String], slugs: [String: String]) -> String? {
+        let key = SlopCategory.key(label)
+        if let name = known[key] ?? slugs[key].flatMap({ known[SlopCategory.key($0)] }) { return name }
+        let words = key.split(separator: " ")
+        guard (1...5).contains(words.count), key.count <= 48,
+              patchName.firstMatch(in: key, range: NSRange(location: 0, length: (key as NSString).length)) == nil else { return nil }
+        return label.trimmingCharacters(in: .whitespaces).lowercased()
+    }
 
     /// The text cut at its headings, each piece with where it is.
     public static func sections(_ text: String, categories: [String]) -> [CategorySection] {
@@ -100,14 +118,13 @@ public enum CategoryHeadings {
         var out: [CategorySection] = []
         var current = CategorySection(category: nil, range: NSRange(location: 0, length: 0))
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: .byLines) { line, lineRange, enclosing, _ in
-            if let line, let match = heading.firstMatch(in: line, range: NSRange(location: 0, length: lineRange.length)) {
-                let key = SlopCategory.key((line as NSString).substring(with: match.range(withName: "name")))
-                if let name = known[key] ?? slugs[key].flatMap({ known[SlopCategory.key($0)] }) {
-                    if current.category != nil || current.range.length > 0 { out.append(current) }
-                    let start = lineRange.location + match.range(withName: "rest").location
-                    current = CategorySection(category: name, range: NSRange(location: start, length: NSMaxRange(enclosing) - start))
-                    return
-                }
+            if let line, let match = heading.firstMatch(in: line, range: NSRange(location: 0, length: lineRange.length)),
+               let name = category(for: (line as NSString).substring(with: match.range(withName: "name")), known: known, slugs: slugs) {
+                if current.category != nil || current.range.length > 0 { out.append(current) }
+                let rest = match.range(withName: "rest")
+                let start = rest.location == NSNotFound ? NSMaxRange(lineRange) : lineRange.location + rest.location
+                current = CategorySection(category: name, range: NSRange(location: start, length: NSMaxRange(enclosing) - start))
+                return
             }
             current.range.length = NSMaxRange(enclosing) - current.range.location
         }

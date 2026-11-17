@@ -54,18 +54,25 @@ final class SlopCategoryTests: XCTestCase {
     }
 
     func testAPasteWithNoHeadingIsOneFinding() {
-        XCTAssertEqual(CategoryHeadings.split("Note: brew.go L1 retries.\nSee L2 too.", categories: categories),
-                       [PastedFinding(category: nil, text: "Note: brew.go L1 retries.\nSee L2 too.")])
+        XCTAssertEqual(CategoryHeadings.split("brew.go L1 retries.\nSee L2 too.", categories: categories),
+                       [PastedFinding(category: nil, text: "brew.go L1 retries.\nSee L2 too.")])
         XCTAssertEqual(CategoryHeadings.split("  \n", categories: categories), [])
     }
 
-    func testOnlyTheSessionsOwnCategoriesSplit() {
-        let text = "Unclear code: brew.go L1.\nMy rule: brew.go L2."
-        XCTAssertEqual(CategoryHeadings.split(text, categories: ["unclear code"]),
-                       [PastedFinding(category: "unclear code", text: "brew.go L1.\nMy rule: brew.go L2.")])
-        XCTAssertEqual(CategoryHeadings.split(text, categories: ["my rule"]), [
-            PastedFinding(category: nil, text: "Unclear code: brew.go L1."),
-            PastedFinding(category: "my rule", text: "brew.go L2."),
+    func testAnyShortLabelWithAColonIsACategory() {
+        let text = "Bad Tests: a.go L1 asserts nothing.\nBad Tests:\na.go L2 too.\n**Unclear code**: a.go L3."
+        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [
+            PastedFinding(category: "bad tests", text: "a.go L1 asserts nothing."),
+            PastedFinding(category: "bad tests", text: "a.go L2 too."),
+            PastedFinding(category: "unclear code", text: "a.go L3."),
         ])
+    }
+
+    func testReferencesURLsPatchNamesAndSentencesAreNotHeadings() {
+        let text = ["Implementation A: brew.go L1 is odd.",
+                    "See https://example.com/x for the spec.",
+                    "brew.go L10: the loop.",
+                    "The retry loop in this file is wrong because: it never stops."].joined(separator: "\n")
+        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [PastedFinding(category: nil, text: text)])
     }
 }
