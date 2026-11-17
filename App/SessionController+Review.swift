@@ -177,6 +177,15 @@ extension SessionController {
         return added
     }
 
+    /// The copy icon on a finding row (issue #41): its text on the
+    /// clipboard — the description, or the title when there is none.
+    func copyText(of finding: Finding) {
+        let text = finding.description.isEmpty ? finding.title : finding.description
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        statusMessage = String(localized: "Finding text copied")
+    }
+
     /// One piece of evidence found in the code: which patch, file and lines.
     struct EvidenceHit {
         var evidence: Evidence

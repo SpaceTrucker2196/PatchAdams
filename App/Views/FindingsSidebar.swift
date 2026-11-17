@@ -187,6 +187,8 @@ struct FindingRow: View {
                     Text(String(localized: "not flagged")).font(.ui(.caption)).foregroundStyle(.secondary)
                 }
                 // Always visible, not only in the right-click menu (issue #26).
+                Button { controller.copyText(of: finding) } label: { Image(systemName: "doc.on.doc") }
+                    .buttonStyle(.borderless).help(String(localized: "Copy this finding's text"))
                 Button { controller.edit(finding) } label: { Image(systemName: "pencil") }
                     .buttonStyle(.borderless).help(String(localized: "Edit this finding"))
                 Button(action: onDelete) { Image(systemName: "trash") }

@@ -27,6 +27,7 @@ import SyntaxHighlight
 ///   --new-session          fire File > New Session after the other steps (issue #32)
 ///   --click-text-link 3    click the 3rd reference link inside the open finding's text (issue #33)
 ///   --goto-finding 1       click finding 1 in the sidebar (issue #19)
+///   --copy-finding 1       click finding 1's copy icon, log the pasteboard (issue #41)
 ///   --rank "A=1,B=2"       set ranks; --rationale "text" sets the rationale
 ///   --save <pkg>           save the session package; --export-md <file> writes the Markdown
 ///   --replace B=/x.patch   put that patch in column B (issue #7); --add /x.patch adds one
@@ -163,6 +164,10 @@ enum DebugHooks {
                 controller.pasteFindingText = text
                 controller.showPasteFinding = true
                 log("paste popup open")
+            }
+            if let n = value(after: "--copy-finding").flatMap(Int.init), controller.findings.indices.contains(n - 1) {
+                controller.copyText(of: controller.findings[n - 1])
+                log("copy finding \(n) → pasteboard \"\(NSPasteboard.general.string(forType: .string) ?? "")\"")
             }
             if let n = value(after: "--goto-finding").flatMap(Int.init), controller.findings.indices.contains(n - 1) {
                 controller.goTo(finding: controller.findings[n - 1])
