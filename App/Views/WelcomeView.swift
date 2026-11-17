@@ -379,6 +379,15 @@ enum SessionActions {
     /// One file since D11; a folder package from before still opens.
     static let sessionType = UTType(exportedAs: "io.river.patchadam.session", conformingTo: .data)
 
+    /// The project directory (issue #46): where the reviewer last saved
+    /// or opened a session. The session and export panels start there,
+    /// whatever folder the patch pickers (Downloads, #44) were in.
+    static let projectDirectoryKey = "projectDirectory"
+    static var projectDirectory: URL? {
+        get { UserDefaults.standard.string(forKey: projectDirectoryKey).map { URL(fileURLWithPath: $0, isDirectory: true) } }
+        set { UserDefaults.standard.set(newValue?.path, forKey: projectDirectoryKey) }
+    }
+
     static func openSession(_ controller: SessionController) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -387,7 +396,11 @@ enum SessionActions {
         panel.allowedContentTypes = [sessionType, .package, .folder]
         panel.treatsFilePackagesAsDirectories = false
         panel.message = String(localized: "Choose a .patchadam session")
-        if panel.runModal() == .OK, let url = panel.url { controller.open(sessionURL: url) }
+        panel.directoryURL = projectDirectory
+        if panel.runModal() == .OK, let url = panel.url {
+            projectDirectory = url.deletingLastPathComponent()
+            controller.open(sessionURL: url)
+        }
     }
 
     /// ⌘S saves in place; ⇧⌘S or a new session asks where.
@@ -397,13 +410,18 @@ enum SessionActions {
         panel.allowedContentTypes = [sessionType]
         panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "Review") : controller.sessionName) + ".patchadam"
         panel.message = String(localized: "Save the session, with every patch, as one .patchadam file")
-        if panel.runModal() == .OK, let url = panel.url { controller.save(to: url) }
+        panel.directoryURL = projectDirectory
+        if panel.runModal() == .OK, let url = panel.url {
+            projectDirectory = url.deletingLastPathComponent()
+            controller.save(to: url)
+        }
     }
 
     static func exportMarkdown(_ controller: SessionController) {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "review") : controller.sessionName) + ".md"
+        panel.directoryURL = projectDirectory
         if panel.runModal() == .OK, let url = panel.url { controller.write(export: Data(controller.markdownExport().utf8), to: url) }
     }
 
@@ -411,6 +429,7 @@ enum SessionActions {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = (controller.sessionName.isEmpty ? String(localized: "review") : controller.sessionName) + ".json"
+        panel.directoryURL = projectDirectory
         if panel.runModal() == .OK, let url = panel.url {
             do { controller.write(export: try controller.jsonExport(), to: url) } catch { controller.errorMessage = "\(error)" }
         }
