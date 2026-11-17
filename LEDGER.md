@@ -37,3 +37,4 @@ whole ledger: `ledger.py --energy-total`.
 | 743fd3d | 2026-11-17T16:34:30Z | claude-fable-5-1 | 262 | 8262 | 3287727 | 20427 | 1.6462 | Copy icon per finding (#41); sloth-ios session |
 | ec9ef73 | 2026-11-17T16:41:14Z | claude-fable-5-1 | 134 | 4823 | 2142705 | 4536 | 0.8689 | Release 1.2.0; sloth-ios session |
 | 774b467 | 2026-11-17T17:05:15Z | claude-fable-5-1 | 534 | 30979 | 8218786 | 46684 | 4.5427 | Any label with a colon is a category (#42); sloth-ios session |
+| df84a09 | 2026-11-17T17:54:44Z | claude-fable-5-1 | 162 | 3538 | 1989316 | 7000 | 0.8158 | Release 1.2.1 (covers #43 row too); sloth-ios session |
