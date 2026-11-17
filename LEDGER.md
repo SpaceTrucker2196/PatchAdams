@@ -38,3 +38,4 @@ whole ledger: `ledger.py --energy-total`.
 | ec9ef73 | 2026-11-17T16:41:14Z | claude-fable-5-1 | 134 | 4823 | 2142705 | 4536 | 0.8689 | Release 1.2.0; sloth-ios session |
 | 774b467 | 2026-11-17T17:05:15Z | claude-fable-5-1 | 534 | 30979 | 8218786 | 46684 | 4.5427 | Any label with a colon is a category (#42); sloth-ios session |
 | df84a09 | 2026-11-17T17:54:44Z | claude-fable-5-1 | 162 | 3538 | 1989316 | 7000 | 0.8158 | Release 1.2.1 (covers #43 row too); sloth-ios session |
+| a151a91 | 2026-11-17T18:24:37Z | claude-fable-5-1 | 330 | 6031 | 4713204 | 9180 | 1.6668 | Patch pickers start in Downloads (#44); sloth-ios session |
