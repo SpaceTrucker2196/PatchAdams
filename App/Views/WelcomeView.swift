@@ -339,6 +339,7 @@ enum SessionActions {
         panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText, UTType(filenameExtension: "diff") ?? .plainText, .plainText]
         panel.message = String(localized: "Choose two to four unified diff files")
+        panel.directoryURL = downloads
         if panel.runModal() == .OK {
             for url in panel.urls { controller.addPatch(url: url) }
         }
@@ -359,8 +360,13 @@ enum SessionActions {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText, UTType(filenameExtension: "diff") ?? .plainText, .plainText]
         panel.message = String(localized: "Choose a unified diff file")
+        panel.directoryURL = downloads
         return panel.runModal() == .OK ? panel.url : nil
     }
+
+    /// Where a patch picker starts, every time (issue #44): patches
+    /// arrive as downloads, so the last folder used is rarely the one.
+    static var downloads: URL? { FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first }
 
     static func pastePatch(_ controller: SessionController) {
         guard let text = NSPasteboard.general.string(forType: .string), text.contains("@@") else {
