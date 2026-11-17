@@ -214,18 +214,14 @@ struct FindingRow: View {
                     EvidenceHelp(found: !checked.isEmpty, patch: controller.displayLabel(finding.label))
                 }
                 // Each reference jumps to its lines (issue #24); one not in
-                // this patch shows red.
-                FlowLayout(spacing: 6) {
-                    ForEach(Array(checked.enumerated()), id: \.offset) { _, item in
-                        Button(item.evidence.reference) {
-                            controller.goTo(evidence: item.evidence, of: finding, source: item.source)
-                        }
-                            .font(.system(size: CGFloat(fontSize) - 2, design: .monospaced))
-                            .buttonStyle(.bordered)
-                            .tint(item.found ? (item.source != nil && item.source == activeSource ? Color(nsColor: SpacetruckerPalette.amber) : nil) : .red)
-                            .foregroundStyle(item.found ? Color.primary : Color.red)
-                            .help(item.found ? String(localized: "Show these lines in patch \(controller.displayLabel(finding.label))")
-                                             : String(localized: "Not in patch \(controller.displayLabel(finding.label))"))
+                // this patch shows red. Under category headings in the text,
+                // the chips sit under those headings (issue #39).
+                ForEach(Array(grouped(checked).enumerated()), id: \.offset) { _, group in
+                    if let category = group.category {
+                        Text(category).font(.ui(.caption).bold()).foregroundStyle(.secondary)
+                    }
+                    FlowLayout(spacing: 6) {
+                        ForEach(Array(group.items.enumerated()), id: \.offset) { _, item in chip(item) }
                     }
                 }
                 ProseTextView(text: field(\.note), font: .ui(.callout), singleLine: true)
@@ -251,7 +247,39 @@ struct FindingRow: View {
     /// The references the finding cites — from its text when the text
     /// has any, else its stored reference (a ⌘N finding) — and whether
     /// each lands in the finding's patch.
-    private var evidenceChecks: [(evidence: Evidence, found: Bool, source: NSRange?)] {
+    typealias EvidenceCheck = (evidence: Evidence, found: Bool, source: NSRange?)
+
+    private func chip(_ item: EvidenceCheck) -> some View {
+        Button(item.evidence.reference) {
+            controller.goTo(evidence: item.evidence, of: finding, source: item.source)
+        }
+        .font(.system(size: CGFloat(fontSize) - 2, design: .monospaced))
+        .buttonStyle(.bordered)
+        .tint(item.found ? (item.source != nil && item.source == activeSource ? Color(nsColor: SpacetruckerPalette.amber) : nil) : .red)
+        .foregroundStyle(item.found ? Color.primary : Color.red)
+        .help(item.found ? String(localized: "Show these lines in patch \(controller.displayLabel(finding.label))")
+                         : String(localized: "Not in patch \(controller.displayLabel(finding.label))"))
+    }
+
+    /// The references by the category heading each is written under;
+    /// one group, unlabelled, when the text has no headings. References
+    /// outside every heading come first.
+    private func grouped(_ checked: [EvidenceCheck]) -> [(category: String?, items: [EvidenceCheck])] {
+        let sections = CategoryHeadings.sections(finding.description, categories: controller.categories)
+        guard sections.contains(where: { $0.category != nil }) else { return [(nil, checked)] }
+        var groups: [(category: String?, items: [EvidenceCheck])] = sections.map { ($0.category, []) }
+        var loose: [EvidenceCheck] = []
+        for item in checked {
+            if let source = item.source, let i = sections.firstIndex(where: { NSLocationInRange(source.location, $0.range) }) {
+                groups[i].items.append(item)
+            } else {
+                loose.append(item)
+            }
+        }
+        return (loose.isEmpty ? [] : [(nil, loose)]) + groups.filter { !$0.items.isEmpty }
+    }
+
+    private var evidenceChecks: [EvidenceCheck] {
         let fromText = EvidenceParser.parseWithSources(finding.description)
         let all: [(evidence: Evidence, source: NSRange?)] = fromText.isEmpty
             ? EvidenceParser.parse(finding.reference).map { ($0, nil) }

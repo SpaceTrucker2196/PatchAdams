@@ -37,6 +37,14 @@ final class SlopCategoryTests: XCTestCase {
         ])
     }
 
+    func testSectionsSayWhereEachCategorysTextIs() {
+        let text = "intro\nUnclear code: a.go L1\nmore\nOther: b.go L2"
+        let sections = CategoryHeadings.sections(text, categories: categories)
+        XCTAssertEqual(sections.map(\.category), [nil, "unclear code", "other"])
+        let ns = text as NSString
+        XCTAssertEqual(sections.map { ns.substring(with: $0.range) }, ["intro\n", "a.go L1\nmore\n", "b.go L2"])
+    }
+
     func testTextBeforeTheFirstHeadingIsAFindingWithNoCategory() {
         let text = "brew.go L1 is odd.\n\nDead or unrelated code: brew.go L2 is unused."
         XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [

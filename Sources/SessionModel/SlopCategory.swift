@@ -70,6 +70,19 @@ public struct PastedFinding: Sendable, Hashable {
     }
 }
 
+/// One run of a paste under a category heading, or before the first
+/// one (`category` nil); `range` is UTF-16 in the original text, the
+/// heading itself left out.
+public struct CategorySection: Sendable, Hashable {
+    public var category: String?
+    public var range: NSRange
+
+    public init(category: String?, range: NSRange) {
+        self.category = category
+        self.range = range
+    }
+}
+
 /// A line that opens with a category name or slug and a colon —
 /// "Unneeded Backwards Compatibility: …", "unneeded_backwards_compatibility: …",
 /// "- **Too many branches**: …" — names the category and starts a finding
@@ -79,31 +92,34 @@ public enum CategoryHeadings {
     private static let heading = try! NSRegularExpression(pattern:
         #"^\s*(?:[-*+#>]+\s*)?[*_]{0,2}\s*(?<name>[A-Za-z][A-Za-z _\-]*?)\s*[*_]{0,2}\s*:\s*(?<rest>.*)$"#)
 
-    public static func split(_ text: String, categories: [String]) -> [PastedFinding] {
+    /// The text cut at its headings, each piece with where it is.
+    public static func sections(_ text: String, categories: [String]) -> [CategorySection] {
         let known = Dictionary(categories.map { (SlopCategory.key($0), $0) }, uniquingKeysWith: { first, _ in first })
         let slugs = Dictionary(SlopCategory.all.map { (SlopCategory.key($0.slug), $0.name) }, uniquingKeysWith: { first, _ in first })
-        var out: [PastedFinding] = []
-        var category: String?
-        var lines: [String] = []
-        func flush() {
-            let body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            if !body.isEmpty { out.append(PastedFinding(category: category, text: body)) }
-            lines = []
-        }
-        for line in text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init) {
-            let ns = line as NSString
-            if let match = heading.firstMatch(in: line, range: NSRange(location: 0, length: ns.length)) {
-                let key = SlopCategory.key(ns.substring(with: match.range(withName: "name")))
+        let ns = text as NSString
+        var out: [CategorySection] = []
+        var current = CategorySection(category: nil, range: NSRange(location: 0, length: 0))
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: .byLines) { line, lineRange, enclosing, _ in
+            if let line, let match = heading.firstMatch(in: line, range: NSRange(location: 0, length: lineRange.length)) {
+                let key = SlopCategory.key((line as NSString).substring(with: match.range(withName: "name")))
                 if let name = known[key] ?? slugs[key].flatMap({ known[SlopCategory.key($0)] }) {
-                    flush()
-                    category = name
-                    lines = [ns.substring(with: match.range(withName: "rest"))]
-                    continue
+                    if current.category != nil || current.range.length > 0 { out.append(current) }
+                    let start = lineRange.location + match.range(withName: "rest").location
+                    current = CategorySection(category: name, range: NSRange(location: start, length: NSMaxRange(enclosing) - start))
+                    return
                 }
             }
-            lines.append(line)
+            current.range.length = NSMaxRange(enclosing) - current.range.location
         }
-        flush()
+        if current.category != nil || current.range.length > 0 { out.append(current) }
         return out
+    }
+
+    public static func split(_ text: String, categories: [String]) -> [PastedFinding] {
+        let ns = text as NSString
+        return sections(text, categories: categories).compactMap { section in
+            let body = ns.substring(with: section.range).trimmingCharacters(in: .whitespacesAndNewlines)
+            return body.isEmpty ? nil : PastedFinding(category: section.category, text: body)
+        }
     }
 }
