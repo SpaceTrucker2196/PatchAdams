@@ -5,7 +5,9 @@ import AppKit
 /// is the system monospace at 12 points. Stored in UserDefaults and
 /// read by `CodeStyle.font`, so every column re-renders on change.
 struct SettingsView: View {
+    var updates: UpdateCheck
     @AppStorage(CodeStyle.fontNameKey) private var fontName = ""
+    @AppStorage(UpdateCheck.enabledKey) private var checkForUpdates = true
     @AppStorage(CodeStyle.fontSizeKey) private var fontSize = 12.0
     @AppStorage(UIScale.key) private var interfaceScale = 1.0
 
@@ -47,6 +49,16 @@ struct SettingsView: View {
                 Toggle(String(localized: "Ask about blind mode on every new session"), isOn: Binding(
                     get: { !UserDefaults.standard.bool(forKey: SessionController.blindPromptShownKey) },
                     set: { UserDefaults.standard.set(!$0, forKey: SessionController.blindPromptShownKey) }))
+            }
+            // The one network call (MISSION.md §2, D12): GitHub's latest release, once a day.
+            Section(String(localized: "Updates")) {
+                Toggle(String(localized: "Check GitHub for a new release once a day"), isOn: $checkForUpdates)
+                HStack {
+                    Button(String(localized: "Check Now")) { Task { await updates.check() } }
+                        .disabled(updates.isChecking)
+                    Text(updates.lastResult ?? String(localized: "This is \(updates.currentVersion.description). Nothing else is sent."))
+                        .font(.ui(.callout)).foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)

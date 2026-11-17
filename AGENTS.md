@@ -38,7 +38,9 @@ Targets and the rules between them (`Package.swift` enforces them):
 - **Nothing executes patched code** (MISSION.md §1). No `Process`
   outside `BaseLoader`'s `git` calls, and those are read-only
   subcommands (`show`, `ls-tree`, `cat-file`, `rev-parse`).
-- **No network.** No `URLSession`, no sockets, anywhere.
+- **No network**, except the release check in `App/UpdateCheck.swift`
+  (MISSION.md §2, D12): one GET of GitHub's latest-release record. No
+  `URLSession`, no sockets, anywhere else — never in an engine.
 - **Post-patch file text is shared, not copied per view.** Value
   types hold it; views reference it.
 - **Line numbers**: the "before" side always means base lines; the
@@ -114,8 +116,9 @@ Targets and the rules between them (`Package.swift` enforces them):
   is an error with a line number, never a guess — a lenient parser
   hides changes from the reviewer (MISSION.md §5).
 - **User-facing strings go through `String(localized:)`** from day one.
-- **Forbidden APIs**: `URLSession`, `Network`, `NSTask`/`Process`
-  outside `BaseLoader`, `FileManager` writes outside session save.
+- **Forbidden APIs**: `URLSession` outside `App/UpdateCheck.swift`,
+  `Network`, `NSTask`/`Process` outside `BaseLoader`, `FileManager`
+  writes outside session save.
 
 ## Conventions
 

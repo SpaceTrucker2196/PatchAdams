@@ -19,9 +19,13 @@ to violate one stops and asks.
 
 1. **Reads code, never runs it.** No target, test, or feature
    executes, builds, or installs patched code. Apply is in memory.
-2. **Nothing leaves the machine.** No network access at any time, no
-   telemetry. Patch and base contents stay local; a session file holds
-   only what the reviewer loaded plus their own notes.
+2. **Nothing leaves the machine.** No telemetry. Patch and base
+   contents stay local; a session file holds only what the reviewer
+   loaded plus their own notes. The one network call (D12): once a
+   day, when Settings allows it (on by default), the app asks GitHub
+   for the latest Patch Adams release and offers the download. That
+   request carries nothing about the reviewer's work. Nothing else
+   ever goes out.
 3. **References are generated, never typed.** Every `filename
    Lstart:Lend` the app writes comes from a selection through the line
    map. A hand-typed reference is a bug.

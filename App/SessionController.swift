@@ -138,6 +138,8 @@ final class SessionController {
     var taskInfo = ""
     var taskInstructions = ""
     var showRequestPanel = true
+    /// The task field open at full size over the columns (issue #40).
+    var expandedTaskField: TaskField?
     var filterText = ""
     var testsOnly = false
     var showRemovedLines = true

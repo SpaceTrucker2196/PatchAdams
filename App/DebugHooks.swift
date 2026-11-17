@@ -35,15 +35,24 @@ import SyntaxHighlight
 ///   --state                log column order, golden, findings, pins, blind mapping
 ///   --stress               time rendering a 10,000-line synthetic file
 ///   --shot <png>           after everything else, render the window to this PNG
+///   --pretend-version 1.0.0   this build claims that version, then checks GitHub for a release (issue #35)
+///   --expand-field request   open that task field full size (request, info, instructions; issue #40)
 ///
 /// Every step logs to stderr as `hook: …`. Debug builds only.
 @MainActor
 enum DebugHooks {
-    static func run(_ controller: SessionController) {
+    static func run(_ controller: SessionController, updates: UpdateCheck) {
         let args = CommandLine.arguments
         func value(after flag: String) -> String? {
             guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }
             return args[i + 1]
+        }
+        if let pretend = value(after: "--pretend-version").flatMap({ ReleaseVersion(tag: $0) }) {
+            updates.currentVersion = pretend
+            Task {
+                await updates.check()
+                log("update check as \(pretend): \(updates.lastResult ?? "no result") banner \(updates.available != nil)")
+            }
         }
         guard args.contains("--demo") || args.contains("--stress") || value(after: "--shot") != nil || value(after: "--patches") != nil || value(after: "--open") != nil || value(after: "--shot-welcome") != nil || value(after: "--dock-icon") != nil else { return }
 
@@ -122,6 +131,10 @@ enum DebugHooks {
                 } else {
                     i += 1
                 }
+            }
+            if let name = value(after: "--expand-field"), let field = TaskField(rawValue: name) {
+                controller.expandedTaskField = field
+                log("expand field \(name)")
             }
             if let spec = value(after: "--task") {
                 let parts = spec.split(separator: "|", omittingEmptySubsequences: false).map(String.init)

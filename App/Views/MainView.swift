@@ -6,6 +6,7 @@ import SessionModel
 /// the findings sidebar.
 struct MainView: View {
     @Bindable var controller: SessionController
+    var updates: UpdateCheck
 
     var body: some View {
         Group {
@@ -15,11 +16,14 @@ struct MainView: View {
                 WelcomeView(controller: controller)
             }
         }
+        // Below the title bar and toolbar, above everything else (issue #35).
+        .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner(updates: updates) }
         .scaledInterface()
         .navigationTitle(controller.sessionTitle)
         .onAppear {
+            updates.checkIfDue()
             #if DEBUG
-            DebugHooks.run(controller)
+            DebugHooks.run(controller, updates: updates)
             #endif
         }
         .toolbar { toolbar }
@@ -63,6 +67,7 @@ struct MainView: View {
             }
             Divider()
             // The findings sidebar takes a quarter of the window (issue #26 follow-up).
+            // A task field open full size covers all of it (issue #40).
             GeometryReader { geometry in
             let quarter = max(280, geometry.size.width / 4)
             HSplitView {
@@ -88,6 +93,11 @@ struct MainView: View {
                         .frame(width: quarter)
                 }
             }
+            }
+            .overlay {
+                if let field = controller.expandedTaskField {
+                    TaskFieldOverlay(controller: controller, field: field)
+                }
             }
             Divider()
             statusBar
@@ -238,11 +248,58 @@ struct SessionTimer: View {
     }
 }
 
+/// One task field at full size (issue #40), laid over everything below
+/// the task header: the whole text, editable, with the system's
+/// spelling. Done or Escape closes it.
+struct TaskFieldOverlay: View {
+    @Bindable var controller: SessionController
+    let field: TaskField
+
+    private var text: Binding<String> {
+        switch field {
+        case .request: $controller.requestText
+        case .info: $controller.taskInfo
+        case .instructions: $controller.taskInstructions
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(field.title).font(.ui(.title3).bold())
+                Spacer()
+                Button(String(localized: "Done")) { controller.expandedTaskField = nil }.keyboardShortcut(.defaultAction)
+                Button(String(localized: "Close")) { controller.expandedTaskField = nil }.keyboardShortcut(.cancelAction).hidden()
+            }
+            ProseTextView(text: text, font: .ui(.body), scrolls: true)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onChange(of: text.wrappedValue) { controller.isDirty = true }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
 /// The request text (FR-6): open on a new session until the reviewer
 /// closes it, so scope stays in view.
 /// The task header (issue #27): the task's title, then three free
 /// fields — the request the patches answer, more about the task, and
 /// the reviewer's instructions. Findings are judged against the request.
+/// The three task fields (issue #40): which one is open at full size.
+enum TaskField: String, Identifiable, Sendable {
+    case request, info, instructions
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .request: String(localized: "Request")
+        case .info: String(localized: "Task info")
+        case .instructions: String(localized: "Instructions")
+        }
+    }
+}
+
 struct RequestPanel: View {
     @Bindable var controller: SessionController
 
@@ -259,11 +316,11 @@ struct RequestPanel: View {
                 .help(String(localized: "Hide the task details"))
             }
             HStack(alignment: .top, spacing: 8) {
-                field(String(localized: "Request"), text: $controller.requestText,
+                field(.request, TaskField.request.title, text: $controller.requestText,
                       placeholder: String(localized: "Paste the task prompt here. Findings are judged against it."))
-                field(String(localized: "Task info"), text: $controller.taskInfo,
+                field(.info, TaskField.info.title, text: $controller.taskInfo,
                       placeholder: String(localized: "Anything else about the task: links, ids, context."))
-                field(String(localized: "Instructions"), text: $controller.taskInstructions,
+                field(.instructions, TaskField.instructions.title, text: $controller.taskInstructions,
                       placeholder: String(localized: "How to review: what to rank, what to look for."))
             }
         }
@@ -271,9 +328,17 @@ struct RequestPanel: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private func field(_ title: String, text: Binding<String>, placeholder: String) -> some View {
+    private func field(_ which: TaskField, _ title: String, text: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.ui(.headline))
+            // The heading opens the field at full size (issue #40); the box itself is for typing.
+            Button { controller.expandedTaskField = which } label: {
+                HStack(spacing: 4) {
+                    Text(title).font(.ui(.headline))
+                    Image(systemName: "arrow.up.left.and.arrow.down.right").font(.ui(.caption)).foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .help(String(localized: "Open \(title) full size"))
             ProseTextView(text: text, font: .ui(.body), scrolls: true)
                 .frame(minHeight: UIScale.size(50), maxHeight: UIScale.size(90))
                 .prosePlaceholder(placeholder, shown: text.wrappedValue.isEmpty, inset: 6)

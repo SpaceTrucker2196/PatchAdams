@@ -241,8 +241,11 @@ patch only in its last section.
   selection. A selection of removed lines only gives `filename -Lstart:Lend`
   in base line numbers.
 
-The app never runs, builds or tests the patched code, and never uses
-the network. Nothing you load leaves the machine.
+The app never runs, builds or tests the patched code, and never sends
+your work anywhere. Its one network call is a once-a-day check of
+GitHub for a newer release, which Settings → Updates turns off; a
+banner offers the download when there is one. Nothing you load leaves
+the machine.
 
 ## Keyboard
 

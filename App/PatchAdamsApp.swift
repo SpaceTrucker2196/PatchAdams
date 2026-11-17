@@ -15,15 +15,16 @@ import PatchModel
 struct PatchAdamsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var controller = SessionController()
+    @State private var updates = UpdateCheck()
 
     var body: some Scene {
         WindowGroup(id: SessionActions.mainWindowID) {
-            MainView(controller: controller)
+            MainView(controller: controller, updates: updates)
                 .frame(minWidth: 1000, minHeight: 640)
         }
         .windowResizability(.contentMinSize)
         .commands { SessionCommands(controller: controller) }
-        Settings { SettingsView() }
+        Settings { SettingsView(updates: updates) }
     }
 }
 
