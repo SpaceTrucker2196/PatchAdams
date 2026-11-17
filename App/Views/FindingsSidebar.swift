@@ -163,36 +163,39 @@ struct FindingRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(controller.displayLabel(finding.label))
-                    .font(.ui(.callout).bold()).frame(width: UIScale.size(20))
-                if isSelected {
-                    Picker(String(localized: "Severity"), selection: field(\.severity)) {
-                        ForEach(Severity.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            // The label, severity, category and icons only when selected (issue #43).
+            if isSelected {
+                HStack(spacing: 6) {
+                    Text(controller.displayLabel(finding.label))
+                        .font(.ui(.callout).bold()).frame(width: UIScale.size(20))
+                    if isSelected {
+                        Picker(String(localized: "Severity"), selection: field(\.severity)) {
+                            ForEach(Severity.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                        }
+                        .labelsHidden().fixedSize()
+                        Picker(String(localized: "Category"), selection: field(\.category)) {
+                            ForEach(controller.categories, id: \.self) { Text($0).tag($0) }
+                        }
+                        .labelsHidden()
+                    } else {
+                        Text(finding.severity.rawValue)
+                            .font(.ui(.caption).bold())
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: CodeStyle.severityColor(finding.severity)).opacity(0.25)))
+                        Text(finding.category).font(.ui(.caption)).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .labelsHidden().fixedSize()
-                    Picker(String(localized: "Category"), selection: field(\.category)) {
-                        ForEach(controller.categories, id: \.self) { Text($0).tag($0) }
+                    Spacer()
+                    if finding.notFlagged {
+                        Text(String(localized: "not flagged")).font(.ui(.caption)).foregroundStyle(.secondary)
                     }
-                    .labelsHidden()
-                } else {
-                    Text(finding.severity.rawValue)
-                        .font(.ui(.caption).bold())
-                        .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: CodeStyle.severityColor(finding.severity)).opacity(0.25)))
-                    Text(finding.category).font(.ui(.caption)).foregroundStyle(.secondary).lineLimit(1)
+                    // Always visible, not only in the right-click menu (issue #26).
+                    Button { controller.copyText(of: finding) } label: { Image(systemName: "doc.on.doc") }
+                        .buttonStyle(.borderless).help(String(localized: "Copy this finding's text"))
+                    Button { controller.edit(finding) } label: { Image(systemName: "pencil") }
+                        .buttonStyle(.borderless).help(String(localized: "Edit this finding"))
+                    Button(action: onDelete) { Image(systemName: "trash") }
+                        .buttonStyle(.borderless).foregroundStyle(.red).help(String(localized: "Delete this finding"))
                 }
-                Spacer()
-                if finding.notFlagged {
-                    Text(String(localized: "not flagged")).font(.ui(.caption)).foregroundStyle(.secondary)
-                }
-                // Always visible, not only in the right-click menu (issue #26).
-                Button { controller.copyText(of: finding) } label: { Image(systemName: "doc.on.doc") }
-                    .buttonStyle(.borderless).help(String(localized: "Copy this finding's text"))
-                Button { controller.edit(finding) } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.borderless).help(String(localized: "Edit this finding"))
-                Button(action: onDelete) { Image(systemName: "trash") }
-                    .buttonStyle(.borderless).foregroundStyle(.red).help(String(localized: "Delete this finding"))
             }
             if isSelected {
                 // The selected finding opens up and edits in place.
@@ -230,17 +233,11 @@ struct FindingRow: View {
                     .prosePlaceholder(String(localized: "Note"), shown: finding.note.isEmpty)
                     .proseField()
             } else {
-                // The whole finding, not a preview (issue #34); a click opens it for editing.
+                // Only the text (issues #34, #43); a click opens it for editing.
                 Text(finding.description.isEmpty ? finding.title : finding.description)
                     .font(textFont)
                     .fixedSize(horizontal: false, vertical: true)
                     .strikethrough(finding.notFlagged)
-                if !finding.note.isEmpty {
-                    Text(String(localized: "Note: \(finding.note)")).font(.ui(.callout)).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Text(finding.reference).font(.ui(.callout).monospaced()).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.vertical, 2)
