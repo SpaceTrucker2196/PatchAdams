@@ -82,6 +82,13 @@ session and saved in the session file.
 **Why.** The spec's open question proposes it. An empty list makes
 the first finding slower and the export inconsistent across sessions.
 
+**2026-11-17, issue #38.** Each category carries the slug a review
+tool writes (`unneeded_backwards_compatibility`) and a one-line
+summary (`SlopCategory`), shown under the picker. A line in pasted
+text that opens with a category name or slug and a colon names the
+category and starts a finding; the names the session stores are
+unchanged, so older session files read as before.
+
 **What would change this.** A second review team with its own
 taxonomy; then an importable list format lands beside the default.
 

@@ -283,21 +283,8 @@ public struct Session: Codable, Sendable, Hashable {
     }
 
     /// The slop categories (DECISIONS.md D3), editable per session.
-    public static let defaultCategories: [String] = [
-        "unnecessary helpers",
-        "excessive defensiveness",
-        "unnecessary machinery or repeated work",
-        "duplicated logic or state",
-        "too many branches",
-        "unclear code",
-        "unhelpful comments or names",
-        "code in the wrong place",
-        "unneeded backwards compatibility",
-        "dead or unrelated code",
-        "premature extensibility",
-        "low-value tests",
-        "other",
-    ]
+    /// Slugs and summaries live in `SlopCategory`; these are the names.
+    public static let defaultCategories: [String] = SlopCategory.all.map(\.name)
 
     public func column(labelled label: String) -> SessionColumn? { columns.first { $0.label == label } }
 

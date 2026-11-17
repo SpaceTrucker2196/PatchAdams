@@ -143,9 +143,8 @@ enum DebugHooks {
                     text = String(text[text.index(after: close)...]).trimmingCharacters(in: .whitespaces)
                 }
                 guard let column = controller.column(namedIn: text) ?? controller.focusedColumn else { continue }
-                let before = controller.findings.count
-                controller.addPastedFinding(text, column: column, category: category, severity: severity)
-                log("paste finding → \(controller.findings.count > before ? controller.findings.last!.reference : "no evidence resolved")")
+                let added = controller.addPastedFindings(text, column: column, category: category, severity: severity)
+                log("paste finding → \(added > 0 ? "\(added) added, last \(controller.findings.last!.reference) [\(controller.findings.last!.category)]" : "no evidence resolved")")
             }
             if let text = value(after: "--paste-popup") {
                 controller.pasteFindingText = text

@@ -153,7 +153,8 @@ file and the reference. Fill in:
 
 Click **+** in the findings sidebar and paste a finding you wrote
 elsewhere. Pick the category and severity; the app finds the evidence
-in the text:
+in the text, and a category heading in the text picks the category
+for the finding it starts:
 
 | Write | Means |
 |---|---|
@@ -162,6 +163,7 @@ in the text:
 | `-L40` | removed lines, by base line number |
 | `Implementation A` | the finding's patch (also *Patch*, *Column*, *Version* …) |
 | `(B main.go L640)` | evidence in another patch, to compare implementations |
+| `Unneeded backwards compatibility: …` | a category name or slug and a colon at the start of a line: that category, and a new finding. Several headings, several findings |
 
 ![The Paste Finding popup: the pasted text, patch C picked from the text, category and severity, and two references each marked with a check](docs/screenshots/paste-finding.png)
 
