@@ -38,11 +38,13 @@ enum SpacetruckerPalette {
     static let plainText = dynamic(dark: moon, light: .textColor)
     /// Greenbar paper: every other display line gets a faint phosphor
     /// green band, barely there, so the eye can follow a row across.
-    /// The finding picked in the sidebar: a deep amber, nearer the
-    /// palette's sunset orange than its peach, still light enough to
-    /// read syntax colour through.
+    /// The clicked reference and the chips: a deep amber, nearer the
+    /// palette's sunset orange than its peach.
     static let amber = rgb(0.86, 0.40, 0.00)
-    static let selectedFinding = dynamic(dark: amber.withAlphaComponent(0.42), light: amber.withAlphaComponent(0.30))
+    /// The finding picked in the sidebar, and its lines in the code: a
+    /// darker, browner amber (issue #45), still light enough to read
+    /// syntax colour through.
+    static let selectedFinding = dynamic(dark: rgb(0.50, 0.22, 0.00).withAlphaComponent(0.60), light: rgb(0.62, 0.29, 0.00).withAlphaComponent(0.34))
     /// A reference written in a finding's text: a shade lighter than the
     /// code ground in dark mode, a shade greyer in light (issue #37).
     static let referenceBackground = dynamic(dark: moon.withAlphaComponent(0.12), light: rgb(0, 0, 0).withAlphaComponent(0.06))
