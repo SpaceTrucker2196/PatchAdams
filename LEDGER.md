@@ -32,3 +32,4 @@ whole ledger: `ledger.py --energy-total`.
 | 7141a9f | 2026-11-12T22:35:56Z | claude-opus-5-5 | 336 | 156414 | 84894612 | 6315016 | 70.6287 | Release 1.1.2: clickable references, spelling, New Session window (#31-#34); win |
 | 87dd9e7 | 2026-11-17T16:08:42Z | claude-fable-5-1 | 2540 | 192791 | 13319223 | 343442 | 19.8636 | Prose spelling + reference wash (#36 #37); window --since #36 ask, sloth-ios ses |
 | 66544fa | 2026-11-17T16:12:54Z | claude-fable-5-1 | 742 | 39422 | 5916664 | 82479 | 5.1073 | Category slugs + summaries; heading starts a finding (#38); sloth-ios session |
+| 35814c2 | 2026-11-17T16:32:25Z | claude-fable-5-1 | 716 | 101777 | 7544240 | 139671 | 9.7755 | Chips grouped by category heading (#39); sloth-ios session |
