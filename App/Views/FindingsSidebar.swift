@@ -194,8 +194,8 @@ struct FindingRow: View {
             }
             if isSelected {
                 // The selected finding opens up and edits in place.
-                TextField(String(localized: "Title"), text: field(\.title), axis: .vertical)
-                    .font(textFont.bold()).textFieldStyle(.plain)
+                ProseTextView(text: field(\.title), font: .systemFont(ofSize: CGFloat(fontSize), weight: .bold), singleLine: true)
+                    .prosePlaceholder(String(localized: "Title"), shown: finding.title.isEmpty)
                 let checked = evidenceChecks
                 let missing = !checked.contains { $0.found }
                 // The text, editable, with each reference a link that
@@ -228,7 +228,9 @@ struct FindingRow: View {
                                              : String(localized: "Not in patch \(controller.displayLabel(finding.label))"))
                     }
                 }
-                TextField(String(localized: "Note"), text: field(\.note)).font(.ui(.callout)).textFieldStyle(.roundedBorder)
+                ProseTextView(text: field(\.note), font: .ui(.callout), singleLine: true)
+                    .prosePlaceholder(String(localized: "Note"), shown: finding.note.isEmpty)
+                    .proseField()
             } else {
                 // The whole finding, not a preview (issue #34); a click opens it for editing.
                 Text(finding.description.isEmpty ? finding.title : finding.description)
@@ -284,15 +286,10 @@ struct RankingBlock: View {
                     .labelsHidden().frame(width: UIScale.size(56))
                 }
             }
-            TextEditor(text: Binding(get: { controller.ranking.rationale }, set: { controller.ranking.rationale = $0; controller.isDirty = true }))
-                .font(.ui(.body))
+            ProseTextView(text: Binding(get: { controller.ranking.rationale }, set: { controller.ranking.rationale = $0; controller.isDirty = true }),
+                          font: .ui(.body), scrolls: true)
                 .frame(minHeight: UIScale.size(50), maxHeight: UIScale.size(90))
-                .overlay(alignment: .topLeading) {
-                    if controller.ranking.rationale.isEmpty {
-                        Text(String(localized: "Rationale: why this order?"))
-                            .foregroundStyle(.tertiary).padding(.horizontal, 5).padding(.vertical, 8).allowsHitTesting(false)
-                    }
-                }
+                .prosePlaceholder(String(localized: "Rationale: why this order?"), shown: controller.ranking.rationale.isEmpty, inset: 6)
         }
         .controlSize(.small)
         .padding(8)
@@ -328,8 +325,9 @@ struct FindingForm: View {
                     Label(String(localized: "Template from another column; the region was located as \(template). Check the lines before saving."), systemImage: "doc.on.doc")
                         .font(.ui(.callout)).foregroundStyle(.secondary)
                 }
-                TextField(String(localized: "Title"), text: binding.finding.title, axis: .vertical)
-                    .textFieldStyle(.plain).font(Font(CodeStyle.font).bold())
+                ProseTextView(text: binding.finding.title, font: NSFontManager.shared.convert(CodeStyle.font, toHaveTrait: .boldFontMask),
+                              textColor: SpacetruckerPalette.plainText, singleLine: true)
+                    .prosePlaceholder(String(localized: "Title"), shown: draft.finding.title.isEmpty)
                     .padding(8).codeSurface()
                 HStack {
                     Picker(String(localized: "Category"), selection: binding.finding.category) {
@@ -367,7 +365,9 @@ struct FindingForm: View {
                 .codeEditorStyle(invalid: false)
                 .frame(minHeight: UIScale.size(160), maxHeight: UIScale.size(360))
                 Text(String(localized: "Correctness note (parked, not a quality label)")).font(.ui(.callout)).foregroundStyle(.secondary)
-                TextField(String(localized: "Note"), text: binding.finding.note).textFieldStyle(.roundedBorder)
+                ProseTextView(text: binding.finding.note, font: .ui(.body), singleLine: true)
+                    .prosePlaceholder(String(localized: "Note"), shown: draft.finding.note.isEmpty)
+                    .proseField()
                 Toggle(String(localized: "Not flagged — considered and passed"), isOn: binding.finding.notFlagged)
                 HStack {
                     Button(String(localized: "Cancel")) { controller.findingDraft = nil }.keyboardShortcut(.cancelAction)
@@ -428,16 +428,10 @@ struct PasteFindingForm: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "Paste Finding")).font(.ui(.headline))
             let missing = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hits.contains { $0 != nil }
-            TextEditor(text: $controller.pasteFindingText)
-                .font(.ui(.body))
+            ProseTextView(text: $controller.pasteFindingText, font: .ui(.body), scrolls: true)
                 .frame(minHeight: UIScale.size(140), maxHeight: UIScale.size(260))
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.red, lineWidth: missing ? 2 : 0))
-                .overlay(alignment: .topLeading) {
-                    if text.isEmpty {
-                        Text(String(localized: "brew_task.go L100-L110 retries the same call twice…"))
-                            .foregroundStyle(.tertiary).padding(.horizontal, 5).allowsHitTesting(false)
-                    }
-                }
+                .prosePlaceholder(String(localized: "brew_task.go L100-L110 retries the same call twice…"), shown: text.isEmpty, inset: 6)
             if missing {
                 EvidenceHelp(found: !evidence.isEmpty, patch: column.map { controller.displayLabel($0) } ?? "?")
             }

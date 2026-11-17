@@ -274,17 +274,10 @@ struct RequestPanel: View {
     private func field(_ title: String, text: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.ui(.headline))
-            TextEditor(text: text)
-                .font(.ui(.body))
+            ProseTextView(text: text, font: .ui(.body), scrolls: true)
                 .frame(minHeight: UIScale.size(50), maxHeight: UIScale.size(90))
-                .overlay(alignment: .topLeading) {
-                    if text.wrappedValue.isEmpty {
-                        Text(placeholder)
-                            .foregroundStyle(.tertiary).padding(.horizontal, 5).padding(.vertical, 8)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .onChange(of: text.wrappedValue) { controller.isDirty = true }
+                .prosePlaceholder(placeholder, shown: text.wrappedValue.isEmpty, inset: 6)
+            .onChange(of: text.wrappedValue) { controller.isDirty = true }
         }
         .frame(maxWidth: .infinity)
     }

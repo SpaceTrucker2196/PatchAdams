@@ -3,8 +3,10 @@ import SwiftUI
 
 /// The open finding's text (issues #31, #33): editable like a text box,
 /// with every reference in it — `catalog.go L106-L110` — a link. A click
-/// on one jumps to its lines, as its button does; the last one clicked
-/// is washed amber. An `NSTextView`, because SwiftUI's `TextEditor`
+/// on one jumps to its lines, as its button does. A reference sits on a
+/// slightly lighter ground, not an underline, which next to the spelling
+/// squiggle read as an error (issue #37); the last one clicked is washed
+/// amber. An `NSTextView`, because SwiftUI's `TextEditor`
 /// cannot say where a click landed. It grows to fit the text.
 struct FindingTextView: NSViewRepresentable {
     @Binding var text: String
@@ -22,28 +24,15 @@ struct FindingTextView: NSViewRepresentable {
         view.isRichText = false
         view.allowsUndo = true
         view.drawsBackground = false
-        // The system's editing tools (issue #34): spelling and grammar as
-        // you type, the Find bar (⌘F), and the substitutions the user has
-        // turned on in System Settings. The right-click menu has the rest.
-        view.isContinuousSpellCheckingEnabled = true
-        view.isGrammarCheckingEnabled = true
-        view.isAutomaticSpellingCorrectionEnabled = NSSpellChecker.isAutomaticSpellingCorrectionEnabled
-        view.isAutomaticQuoteSubstitutionEnabled = NSSpellChecker.isAutomaticQuoteSubstitutionEnabled
-        view.isAutomaticDashSubstitutionEnabled = NSSpellChecker.isAutomaticDashSubstitutionEnabled
-        view.isAutomaticTextReplacementEnabled = NSSpellChecker.isAutomaticTextReplacementEnabled
-        view.smartInsertDeleteEnabled = true
-        view.usesFindBar = true
-        view.isIncrementalSearchingEnabled = true
+        view.useSystemEditing()
         view.textContainerInset = NSSize(width: 0, height: 2)
         view.textContainer?.widthTracksTextView = true
         view.isVerticallyResizable = false
         view.isHorizontallyResizable = false
         view.delegate = context.coordinator
-        // Links look like the code's text, underlined, so the finding still reads as prose.
+        // Links look like the code's text, so the finding still reads as prose.
         view.linkTextAttributes = [
             .foregroundColor: SpacetruckerPalette.plainText,
-            .underlineStyle: NSUnderlineStyle.single.rawValue,
-            .underlineColor: SpacetruckerPalette.amber,
             .cursor: NSCursor.pointingHand,
         ]
         view.string = text
@@ -70,6 +59,7 @@ struct FindingTextView: NSViewRepresentable {
         storage.setAttributes(plain, range: whole)
         for (i, source) in sources.enumerated() where NSMaxRange(source) <= storage.length {
             storage.addAttribute(.link, value: URL(string: "\(Self.scheme)://\(i)")!, range: source)
+            storage.addAttribute(.backgroundColor, value: SpacetruckerPalette.referenceBackground, range: source)
         }
         if let active, NSMaxRange(active) <= storage.length {
             storage.addAttribute(.backgroundColor, value: SpacetruckerPalette.amber.withAlphaComponent(0.55), range: active)

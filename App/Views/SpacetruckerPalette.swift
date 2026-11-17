@@ -43,6 +43,9 @@ enum SpacetruckerPalette {
     /// read syntax colour through.
     static let amber = rgb(0.86, 0.40, 0.00)
     static let selectedFinding = dynamic(dark: amber.withAlphaComponent(0.42), light: amber.withAlphaComponent(0.30))
+    /// A reference written in a finding's text: a shade lighter than the
+    /// code ground in dark mode, a shade greyer in light (issue #37).
+    static let referenceBackground = dynamic(dark: moon.withAlphaComponent(0.12), light: rgb(0, 0, 0).withAlphaComponent(0.06))
     static let zebraStripe = dynamic(dark: phosphorGreen.withAlphaComponent(0.035), light: rgb(0.12, 0.50, 0.39).withAlphaComponent(0.045))
 
     static func color(_ kind: TokenKind) -> NSColor { colors[kind] ?? plainText }
