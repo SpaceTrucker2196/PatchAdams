@@ -161,24 +161,6 @@ extension SessionController {
         statusMessage = String(localized: "Finding added: \(finding.reference)")
     }
 
-    /// A paste with category headings (issue #38) — "Unneeded Backwards
-    /// Compatibility: …" — adds one finding per heading in that category;
-    /// text with no heading takes the picker's. Each part may name its
-    /// own patch ("Implementation B"). Returns how many findings landed.
-    @discardableResult
-    func addPastedFindings(_ text: String, column: PatchColumn, category: String, severity: Severity) -> Int {
-        let before = findings.count
-        for part in CategoryHeadings.split(text, categories: categories) {
-            // A heading not in the list names a new category (issue #42).
-            if let name = part.category, !categories.contains(name) { categories.append(name) }
-            addPastedFinding(part.text, column: self.column(namedIn: part.text) ?? column,
-                             category: part.category ?? category, severity: severity)
-        }
-        let added = findings.count - before
-        if added > 1 { statusMessage = String(localized: "\(added) findings added, by category heading") }
-        return added
-    }
-
     /// The copy icon on a finding row (issue #41): its text on the
     /// clipboard — the description, or the title when there is none.
     func copyText(of finding: Finding) {

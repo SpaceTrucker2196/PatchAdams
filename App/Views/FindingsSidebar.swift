@@ -452,7 +452,6 @@ struct PasteFindingForm: View {
     var body: some View {
         let evidence = EvidenceParser.parse(text)
         let hits = column.map { column in evidence.map { controller.resolve($0, in: controller.column(for: $0, default: column)) } } ?? []
-        let headed = CategoryHeadings.split(text, categories: controller.categories).compactMap(\.category)
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "Paste Finding")).font(.ui(.headline))
             let missing = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hits.contains { $0 != nil }
@@ -472,17 +471,12 @@ struct PasteFindingForm: View {
                     Text(String(localized: "from the text: \(controller.displayLabel(named))"))
                         .font(.ui(.callout)).foregroundStyle(.secondary).fixedSize()
                 }
-                Picker(headed.isEmpty ? String(localized: "Category") : String(localized: "Category (text without a heading)"), selection: $category) {
+                Picker(String(localized: "Category"), selection: $category) {
                     ForEach(controller.categories, id: \.self) { Text($0).tag($0) }
                 }
             }
             if let summary = SlopCategory.summary(of: category) {
                 Text(summary).font(.ui(.callout)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            if !headed.isEmpty {
-                // Headings in the text name categories (issue #38): one finding each.
-                Text(String(localized: "\(headed.count) findings from category headings: \(headed.joined(separator: ", "))"))
-                    .font(.ui(.callout)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Picker(String(localized: "Severity"), selection: $severity) {
                 ForEach(Severity.allCases, id: \.self) { Text($0.rawValue).tag($0) }
@@ -504,7 +498,7 @@ struct PasteFindingForm: View {
                 Spacer()
                 Button(String(localized: "Add Finding")) {
                     guard let column else { return }
-                    controller.addPastedFindings(text, column: column, category: category, severity: severity)
+                    controller.addPastedFinding(text, column: column, category: category, severity: severity)
                     controller.pasteFindingText = ""
                     controller.showPasteFinding = false
                 }

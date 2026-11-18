@@ -23,49 +23,36 @@ final class SlopCategoryTests: XCTestCase {
         XCTAssertNil(SlopCategory.summary(of: "my own category"))
     }
 
-    func testAHeadingNamesTheCategoryAndStartsAFinding() {
-        let text = """
-        Unneeded Backwards Compatibility: brew.go L10-L12 keeps the old wrapper.
-        No caller is left.
-        unnecessary_machinery_or_repeated_work: queue.go L40 retries with no need.
-        - **Too many branches**: heater.go L5-L9 nests three ifs.
-        """
-        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [
-            PastedFinding(category: "unneeded backwards compatibility", text: "brew.go L10-L12 keeps the old wrapper.\nNo caller is left."),
-            PastedFinding(category: "unnecessary machinery or repeated work", text: "queue.go L40 retries with no need."),
-            PastedFinding(category: "too many branches", text: "heater.go L5-L9 nests three ifs."),
-        ])
-    }
-
-    func testSectionsSayWhereEachCategorysTextIs() {
-        let text = "intro\nUnclear code: a.go L1\nmore\nOther: b.go L2"
-        let sections = CategoryHeadings.sections(text, categories: categories)
-        XCTAssertEqual(sections.map(\.category), [nil, "unclear code", "other"])
+    private func pieces(_ text: String) -> [(String?, String)] {
         let ns = text as NSString
-        XCTAssertEqual(sections.map { ns.substring(with: $0.range) }, ["intro\n", "a.go L1\nmore\n", "b.go L2"])
+        return CategoryHeadings.sections(text, categories: categories).map { ($0.category, ns.substring(with: $0.range)) }
     }
 
-    func testTextBeforeTheFirstHeadingIsAFindingWithNoCategory() {
-        let text = "brew.go L1 is odd.\n\nDead or unrelated code: brew.go L2 is unused."
-        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [
-            PastedFinding(category: nil, text: "brew.go L1 is odd."),
-            PastedFinding(category: "dead or unrelated code", text: "brew.go L2 is unused."),
-        ])
+    func testAHeadingNamesTheCategoryOfTheTextUnderIt() {
+        let text = "Unneeded Backwards Compatibility: brew.go L10-L12 keeps the old wrapper.\nNo caller is left.\n"
+            + "unnecessary_machinery_or_repeated_work: queue.go L40 retries with no need.\n"
+            + "- **Too many branches**: heater.go L5-L9 nests three ifs."
+        let found = pieces(text)
+        XCTAssertEqual(found.map(\.0), ["unneeded backwards compatibility", "unnecessary machinery or repeated work", "too many branches"])
+        XCTAssertEqual(found.map(\.1), ["brew.go L10-L12 keeps the old wrapper.\nNo caller is left.\n", "queue.go L40 retries with no need.\n", "heater.go L5-L9 nests three ifs."])
     }
 
-    func testAPasteWithNoHeadingIsOneFinding() {
-        XCTAssertEqual(CategoryHeadings.split("brew.go L1 retries.\nSee L2 too.", categories: categories),
-                       [PastedFinding(category: nil, text: "brew.go L1 retries.\nSee L2 too.")])
-        XCTAssertEqual(CategoryHeadings.split("  \n", categories: categories), [])
+    func testTextBeforeTheFirstHeadingHasNoCategory() {
+        let found = pieces("intro\nUnclear code: a.go L1\nmore\nOther: b.go L2")
+        XCTAssertEqual(found.map(\.0), [nil, "unclear code", "other"])
+        XCTAssertEqual(found.map(\.1), ["intro\n", "a.go L1\nmore\n", "b.go L2"])
     }
 
-    func testAnyShortLabelWithAColonIsACategory() {
-        let text = "Bad Tests: a.go L1 asserts nothing.\nBad Tests:\na.go L2 too.\n**Unclear code**: a.go L3."
-        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [
-            PastedFinding(category: "bad tests", text: "a.go L1 asserts nothing."),
-            PastedFinding(category: "bad tests", text: "a.go L2 too."),
-            PastedFinding(category: "unclear code", text: "a.go L3."),
-        ])
+    func testTextWithNoHeadingIsOneUnlabelledRun() {
+        let found = pieces("brew.go L1 retries.\nSee L2 too.")
+        XCTAssertEqual(found.map(\.0), [nil])
+        XCTAssertEqual(found.map(\.1), ["brew.go L1 retries.\nSee L2 too."])
+    }
+
+    func testAnyShortLabelWithAColonIsAHeading() {
+        let found = pieces("Bad Tests: a.go L1 asserts nothing.\nBad Tests:\na.go L2 too.\n**Unclear code**: a.go L3.")
+        XCTAssertEqual(found.map(\.0), ["bad tests", "bad tests", "unclear code"])
+        XCTAssertEqual(found.map(\.1), ["a.go L1 asserts nothing.\n", "a.go L2 too.\n", "a.go L3."])
     }
 
     func testReferencesURLsPatchNamesAndSentencesAreNotHeadings() {
@@ -73,6 +60,6 @@ final class SlopCategoryTests: XCTestCase {
                     "See https://example.com/x for the spec.",
                     "brew.go L10: the loop.",
                     "The retry loop in this file is wrong because: it never stops."].joined(separator: "\n")
-        XCTAssertEqual(CategoryHeadings.split(text, categories: categories), [PastedFinding(category: nil, text: text)])
+        XCTAssertEqual(pieces(text).map(\.0), [nil])
     }
 }

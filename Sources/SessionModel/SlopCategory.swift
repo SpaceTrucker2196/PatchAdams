@@ -58,21 +58,9 @@ public struct SlopCategory: Sendable, Hashable {
     }
 }
 
-/// One finding read out of a paste: its category when a heading named
-/// one, else nil for the picker's.
-public struct PastedFinding: Sendable, Hashable {
-    public var category: String?
-    public var text: String
-
-    public init(category: String?, text: String) {
-        self.category = category
-        self.text = text
-    }
-}
-
-/// One run of a paste under a category heading, or before the first
-/// one (`category` nil); `range` is UTF-16 in the original text, the
-/// heading itself left out.
+/// One run of a finding's text under a category heading, or before the
+/// first one (`category` nil); `range` is UTF-16 in the original text,
+/// the heading itself left out.
 public struct CategorySection: Sendable, Hashable {
     public var category: String?
     public var range: NSRange
@@ -85,13 +73,12 @@ public struct CategorySection: Sendable, Hashable {
 
 /// A line that opens with a short label and a colon — "Unneeded
 /// Backwards Compatibility: …", "unneeded_backwards_compatibility: …",
-/// "- **Too many branches**: …", "Bad Tests: …" — names a category and
-/// starts a finding (issues #38, #42). A label that is a known category,
-/// by name or slug, gives that category; any other label of up to five
-/// words is a category of its own. Not labels: file references, URLs,
-/// and patch names ("Implementation A:"). Text before the first heading
-/// is a finding of its own with no category; a paste with no heading is
-/// one finding.
+/// "- **Too many branches**: …", "Bad Tests: …" — names a category for
+/// the text under it, so the open finding's reference chips can group
+/// by it (issues #39, #42). A known category, by name or slug, gives
+/// that name; any other label of up to five words is a label of its
+/// own. Not labels: file references, URLs, and patch names
+/// ("Implementation A:"). A finding is never split on these (#47).
 public enum CategoryHeadings {
     private static let heading = try! NSRegularExpression(pattern:
         #"^\s*(?:[-*+#>]+\s*)?[*_]{0,2}\s*(?<name>[A-Za-z][A-Za-z _\-]*?)\s*[*_]{0,2}\s*:(?:\s+(?<rest>.*)|(?<empty>))$"#)
@@ -122,7 +109,7 @@ public enum CategoryHeadings {
                let name = category(for: (line as NSString).substring(with: match.range(withName: "name")), known: known, slugs: slugs) {
                 if current.category != nil || current.range.length > 0 { out.append(current) }
                 let rest = match.range(withName: "rest")
-                let start = rest.location == NSNotFound ? NSMaxRange(lineRange) : lineRange.location + rest.location
+                let start = rest.location == NSNotFound ? NSMaxRange(enclosing) : lineRange.location + rest.location
                 current = CategorySection(category: name, range: NSRange(location: start, length: NSMaxRange(enclosing) - start))
                 return
             }
@@ -130,13 +117,5 @@ public enum CategoryHeadings {
         }
         if current.category != nil || current.range.length > 0 { out.append(current) }
         return out
-    }
-
-    public static func split(_ text: String, categories: [String]) -> [PastedFinding] {
-        let ns = text as NSString
-        return sections(text, categories: categories).compactMap { section in
-            let body = ns.substring(with: section.range).trimmingCharacters(in: .whitespacesAndNewlines)
-            return body.isEmpty ? nil : PastedFinding(category: section.category, text: body)
-        }
     }
 }

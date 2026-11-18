@@ -90,6 +90,12 @@ text that opens with a category name or slug and a colon names the
 category and starts a finding; the names the session stores are
 unchanged, so older session files read as before.
 
+**2026-11-18, issue #47 — the split is withdrawn.** The owner: "don't
+break up a finding based on tags. that new feature is confusing. how
+we had it before was good". A paste is one finding, category from the
+picker. Headings in the text still group the open finding's reference
+chips (#39, #42); the slugs and summaries stay.
+
 **What would change this.** A second review team with its own
 taxonomy; then an importable list format lands beside the default.
 
