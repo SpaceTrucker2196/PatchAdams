@@ -43,3 +43,4 @@ whole ledger: `ledger.py --energy-total`.
 | ee7f89f | 2026-11-17T20:45:04Z | claude-fable-5-1,claude-opus-5-5 | 334 | 89347 | 16169563 | 1335933 | 28.5879 | Session panels keep the project directory (#46); sloth-ios session |
 | 33c7364 | 2026-11-18T18:24:01Z | claude-fable-5-1,claude-opus-5-5 | 382 | 199056 | 30887144 | 830271 | 20.8376 | Release 1.2.2; sloth-ios session |
 | c3bb43f | 2026-11-18T18:40:52Z | claude-fable-5-1 | 722 | 29951 | 10983772 | 61517 | 5.4811 | Paste split withdrawn (#47); sloth-ios session |
+| baba898 | 2026-11-18T18:42:49Z | claude-fable-5-1 | 32 | 212 | 380202 | 1429 | 0.1346 | Release 1.2.3; sloth-ios session |
