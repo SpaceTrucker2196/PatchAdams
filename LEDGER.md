@@ -41,3 +41,4 @@ whole ledger: `ledger.py --energy-total`.
 | a151a91 | 2026-11-17T18:24:37Z | claude-fable-5-1 | 330 | 6031 | 4713204 | 9180 | 1.6668 | Patch pickers start in Downloads (#44); sloth-ios session |
 | 08b189c | 2026-11-17T18:34:09Z | claude-fable-5-1 | 326 | 6077 | 4464915 | 11171 | 1.6468 | Darker selected-finding wash (#45); sloth-ios session |
 | ee7f89f | 2026-11-17T20:45:04Z | claude-fable-5-1,claude-opus-5-5 | 334 | 89347 | 16169563 | 1335933 | 28.5879 | Session panels keep the project directory (#46); sloth-ios session |
+| 33c7364 | 2026-11-18T18:24:01Z | claude-fable-5-1,claude-opus-5-5 | 382 | 199056 | 30887144 | 830271 | 20.8376 | Release 1.2.2; sloth-ios session |
