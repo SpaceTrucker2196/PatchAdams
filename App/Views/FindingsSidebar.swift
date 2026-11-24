@@ -348,6 +348,8 @@ struct FindingForm: View {
                 }
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: SpacetruckerPalette.gutterBackground)))
+                ScreenFittingScroll(reserve: UIScale.size(140)) {
+                VStack(alignment: .leading, spacing: 10) {
                 if let template = draft.templateOf {
                     Label(String(localized: "Template from another column; the region was located as \(template). Check the lines before saving."), systemImage: "doc.on.doc")
                         .font(.ui(.callout)).foregroundStyle(.secondary)
@@ -396,6 +398,8 @@ struct FindingForm: View {
                     .prosePlaceholder(String(localized: "Note"), shown: draft.finding.note.isEmpty)
                     .proseField()
                 Toggle(String(localized: "Not flagged — considered and passed"), isOn: binding.finding.notFlagged)
+                }
+                }
                 HStack {
                     Button(String(localized: "Cancel")) { controller.findingDraft = nil }.keyboardShortcut(.cancelAction)
                     Spacer()
@@ -405,10 +409,46 @@ struct FindingForm: View {
                 }
             }
             .padding(16)
-            .frame(width: UIScale.size(680))
+            .frame(width: min(UIScale.size(680), ScreenFit.visibleSize.width - 40))
             .background(Color(nsColor: SpacetruckerPalette.gutterBackground).opacity(0.5))
         }
     }
+}
+
+/// Keeps a sheet on the screen (issue #48): the content takes its own
+/// height until the sheet would pass the screen's visible height, then
+/// it scrolls, so the buttons under it stay in reach.
+struct ScreenFittingScroll<Content: View>: View {
+    /// Height kept for what sits outside the scroll: header, buttons, padding.
+    let reserve: CGFloat
+    @ViewBuilder let content: Content
+    @State private var contentHeight: CGFloat = 0
+
+    var body: some View {
+        // A sheet's title bar and margins take about 60 points.
+        let limit = max(UIScale.size(160), ScreenFit.visibleSize.height - reserve - 60)
+        ScrollView(.vertical) {
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { proxy in
+                    Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
+                })
+        }
+        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+        .frame(height: min(max(contentHeight, 1), limit))
+    }
+}
+
+enum ScreenFit {
+    /// The visible frame of the screen the app is on (no menu bar, no Dock).
+    @MainActor static var visibleSize: CGSize {
+        (NSApp.keyWindow?.screen ?? NSScreen.main)?.visibleFrame.size ?? CGSize(width: 1280, height: 800)
+    }
+}
+
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 extension View {
@@ -455,6 +495,8 @@ struct PasteFindingForm: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "Paste Finding")).font(.ui(.headline))
             let missing = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hits.contains { $0 != nil }
+            ScreenFittingScroll(reserve: UIScale.size(160)) {
+            VStack(alignment: .leading, spacing: 10) {
             ProseTextView(text: $controller.pasteFindingText, font: .ui(.body), scrolls: true)
                 .frame(minHeight: UIScale.size(140), maxHeight: UIScale.size(260))
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.red, lineWidth: missing ? 2 : 0))
@@ -493,6 +535,8 @@ struct PasteFindingForm: View {
                     .foregroundStyle(hits[i] == nil ? Color.red : Color.secondary)
                     .help(hits[i] == nil ? String(localized: "Not in this patch's version of the file") : "")
             }
+            }
+            }
             HStack {
                 Button(String(localized: "Cancel")) { controller.showPasteFinding = false }.keyboardShortcut(.cancelAction)
                 Spacer()
@@ -513,7 +557,7 @@ struct PasteFindingForm: View {
             }
         }
         .padding(16)
-        .frame(width: UIScale.size(560))
+        .frame(width: min(UIScale.size(560), ScreenFit.visibleSize.width - 40))
         .onAppear { if category.isEmpty { category = controller.categories.first ?? "other" } }
     }
 }

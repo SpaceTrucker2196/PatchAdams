@@ -35,7 +35,7 @@ import SyntaxHighlight
 ///   --shot-welcome <png>   draw the welcome view to a PNG
 ///   --state                log column order, golden, findings, pins, blind mapping
 ///   --stress               time rendering a 10,000-line synthetic file
-///   --shot <png>           after everything else, render the window to this PNG
+///   --shot <png>           after everything else, render the window to this PNG (and an open sheet to <png>-sheet.png)
 ///   --pretend-version 1.0.0   this build claims that version, then checks GitHub for a release (issue #35)
 ///   --expand-field request   open that task field full size (request, info, instructions; issue #40)
 ///
@@ -334,6 +334,16 @@ enum DebugHooks {
                         try? png.write(to: URL(fileURLWithPath: shot))
                         log("shot written to \(shot)")
                     }
+                }
+                // An open sheet is its own window (issue #48): draw it too, and say if it fits the screen.
+                if let sheet = NSApp.windows.first(where: { $0.frame.width > 900 })?.attachedSheet,
+                   let view = sheet.contentView, let screen = sheet.screen ?? NSScreen.main,
+                   let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    let path = (shot as NSString).deletingPathExtension + "-sheet.png"
+                    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+                    let fits = screen.visibleFrame.contains(sheet.frame)
+                    log("sheet \(Int(sheet.frame.width))x\(Int(sheet.frame.height)) on screen \(Int(screen.visibleFrame.width))x\(Int(screen.visibleFrame.height)) fits \(fits) → \(path)")
                 }
             }
         }
