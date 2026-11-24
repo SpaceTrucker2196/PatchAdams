@@ -44,3 +44,4 @@ whole ledger: `ledger.py --energy-total`.
 | 33c7364 | 2026-11-18T18:24:01Z | claude-fable-5-1,claude-opus-5-5 | 382 | 199056 | 30887144 | 830271 | 20.8376 | Release 1.2.2; sloth-ios session |
 | c3bb43f | 2026-11-18T18:40:52Z | claude-fable-5-1 | 722 | 29951 | 10983772 | 61517 | 5.4811 | Paste split withdrawn (#47); sloth-ios session |
 | baba898 | 2026-11-18T18:42:49Z | claude-fable-5-1 | 32 | 212 | 380202 | 1429 | 0.1346 | Release 1.2.3; sloth-ios session |
+| 727312b | 2026-11-24T15:05:53Z | claude-opus-5-5 | 82 | 23926 | 3420697 | 153338 | 2.3897 | Finding sheets fit the screen (#48) |
