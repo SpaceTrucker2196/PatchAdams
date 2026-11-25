@@ -448,17 +448,62 @@ extension SessionController {
 
     /// Write the `.patchadam` session file: one file with every patch in
     /// it (D11). The one place the app writes files.
-    func save(to url: URL) {
+    func save(to url: URL, quietly: Bool = false) {
         do {
             if sessionName.isEmpty { sessionName = url.deletingPathExtension().lastPathComponent }
+            try backupOnce(url)
             try SessionPackage.write(packageContents(), to: url)
             sessionURL = url
             isDirty = false
+            needsAutosave = false
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
-            statusMessage = String(localized: "Saved \(url.lastPathComponent)")
+            if !quietly { statusMessage = String(localized: "Saved \(url.lastPathComponent)") }
         } catch {
             errorMessage = "\(error)"
         }
+    }
+
+    // MARK: - Autosave and backup (issue #49)
+
+    static let autosaveInterval: Duration = .seconds(30)
+
+    /// Before this run first writes a file, copy it to
+    /// `<name> (backup).patchadam`: the session as it was when opened.
+    private func backupOnce(_ url: URL) throws {
+        guard !backedUpURLs.contains(url) else { return }
+        try SessionPackage.backup(url)
+        backedUpURLs.insert(url)
+    }
+
+    /// Save any change without asking: in place when the session has a
+    /// file, else to the autosave folder. Runs on a timer, when the app
+    /// goes to the background, and when it quits.
+    func autosave() {
+        guard needsAutosave, orderConfirmed, !columns.isEmpty else { return }
+        if let url = sessionURL {
+            save(to: url, quietly: true)
+            return
+        }
+        do {
+            let url = try untitledAutosaveURL ?? Self.newUntitledAutosaveURL(name: sessionName)
+            try SessionPackage.write(packageContents(), to: url)
+            untitledAutosaveURL = url
+            needsAutosave = false
+        } catch {
+            errorMessage = "\(error)"
+        }
+    }
+
+    /// `~/Library/Application Support/PatchAdams/Autosave/<name> <date>.patchadam`.
+    static func newUntitledAutosaveURL(name: String) throws -> URL {
+        let folder = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("PatchAdams/Autosave", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let format = DateFormatter()
+        format.dateFormat = "yyyy-MM-dd HHmmss"   // local time, no colons
+        let stamp = format.string(from: Date())
+        let title = name.isEmpty ? String(localized: "Untitled") : name
+        return folder.appendingPathComponent("\(title) \(stamp).\(SessionPackage.fileExtension)")
     }
 
     /// Restore a saved session: patches in their saved order and labels,

@@ -80,6 +80,30 @@ final class SessionModelTests: XCTestCase {
         XCTAssertEqual(try SessionPackage.read(from: url).patchTexts, texts)
     }
 
+    func testBackupCopiesTheSavedFileBesideIt() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
+        let backup = SessionPackage.backupURL(for: url)
+        defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: backup) }
+        XCTAssertEqual(backup.lastPathComponent, url.deletingPathExtension().lastPathComponent + " (backup).patchadam")
+        let old = ["A": "old\n", "B": "b\n", "C": "c\n", "D": "d\n"]
+        try SessionPackage.write(SessionPackage.Contents(session: Self.sample(), patchTexts: old), to: url)
+        XCTAssertEqual(try SessionPackage.backup(url), backup)
+        var new = old
+        new["A"] = "new\n"
+        try SessionPackage.write(SessionPackage.Contents(session: Self.sample(), patchTexts: new), to: url)
+        XCTAssertEqual(try SessionPackage.read(from: backup).patchTexts, old)
+        XCTAssertEqual(try SessionPackage.read(from: url).patchTexts, new)
+        // A second backup replaces the first.
+        XCTAssertEqual(try SessionPackage.backup(url), backup)
+        XCTAssertEqual(try SessionPackage.read(from: backup).patchTexts, new)
+    }
+
+    func testBackupOfAFileNotYetSavedDoesNothing() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
+        XCTAssertNil(try SessionPackage.backup(url))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SessionPackage.backupURL(for: url).path))
+    }
+
     func testFileThatIsNotASessionIsAnError() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("SessionModelTests-\(UUID().uuidString).patchadam")
         defer { try? FileManager.default.removeItem(at: url) }

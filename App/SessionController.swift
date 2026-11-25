@@ -187,7 +187,14 @@ final class SessionController {
     var activeEvidenceSource: NSRange?
     var findingFilter = FindingFilter()
     var sessionStart = Date()
-    var isDirty = false
+    var isDirty = false { didSet { needsAutosave = isDirty } }
+    /// A change since the last save or autosave (issue #49).
+    var needsAutosave = false
+    /// Files already backed up in this run: the backup is the file as it
+    /// was before this run first wrote it.
+    var backedUpURLs: Set<URL> = []
+    /// Where a session never saved by the reviewer is autosaved.
+    var untitledAutosaveURL: URL?
 
     /// `git --version` at launch, or `nil` when git is not installed:
     /// the Git Revision base is then disabled and the welcome view says
@@ -225,6 +232,7 @@ final class SessionController {
         let labels = ["A", "B", "C", "D"]
         for i in columns.indices { columns[i].label = labels[i] }
         orderConfirmed = true
+        isDirty = true   // a new session is worth autosaving from here (issue #49)
     }
 
     var baseDescription: String { base?.origin.description ?? String(localized: "no base") }
@@ -352,6 +360,7 @@ final class SessionController {
     }
 
     func newSession() {
+        autosave()   // never drop unsaved work on New Session or Open (issue #49)
         base = nil
         columns = []
         selectedPath = nil
@@ -369,6 +378,7 @@ final class SessionController {
         showRequestPanel = true
         sessionName = ""
         sessionURL = nil
+        untitledAutosaveURL = nil
         findings = []
         ranking = Ranking()
         categories = Session.defaultCategories

@@ -50,6 +50,25 @@ public enum SessionPackage {
         var patches: [String: String]
     }
 
+    /// Where `backup(_:)` keeps the copy: beside the file, named
+    /// `<name> (backup).patchadam`, so it opens like any session (issue #49).
+    public static func backupURL(for url: URL) -> URL {
+        url.deletingLastPathComponent().appendingPathComponent(
+            url.deletingPathExtension().lastPathComponent + " (backup)." + fileExtension)
+    }
+
+    /// Copy the saved session at `url` to its backup, replacing an older
+    /// backup. Returns the backup, or `nil` when nothing is saved there yet.
+    @discardableResult
+    public static func backup(_ url: URL) throws -> URL? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path) else { return nil }
+        let backup = backupURL(for: url)
+        if fm.fileExists(atPath: backup.path) { try fm.removeItem(at: backup) }
+        try fm.copyItem(at: url, to: backup)
+        return backup
+    }
+
     /// Write the session as one file at `url`, replacing it atomically.
     public static func write(_ contents: Contents, to url: URL) throws {
         var session = contents.session

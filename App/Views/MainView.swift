@@ -27,6 +27,15 @@ struct MainView: View {
             #endif
         }
         .toolbar { toolbar }
+        // Autosave (issue #49): every 30 seconds, on leaving the app, and on quit.
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: SessionController.autosaveInterval)
+                controller.autosave()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in controller.autosave() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in controller.autosave() }
         .sheet(item: $controller.findingDraft) { _ in FindingForm(controller: controller) }
         .sheet(isPresented: $controller.showPasteFinding) { PasteFindingForm(controller: controller) }
         .onChange(of: controller.scrollLock, initial: true) { _, on in controller.scrollSync.isEnabled = { on } }
